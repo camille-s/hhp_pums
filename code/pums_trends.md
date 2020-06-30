@@ -48,7 +48,7 @@ week_dates <- read_html("https://www.census.gov/programs-surveys/household-pulse
 ```
 
 ``` r
-all_pums <- list.files(here::here("data/microdata"), full.names = TRUE) %>%
+all_pums <- list.files(here::here("fetch_data/microdata"), full.names = TRUE) %>%
   map(readRDS)
 
 pums_df <- all_pums %>% 

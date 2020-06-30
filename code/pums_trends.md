@@ -1,0 +1,902 @@
+pums analysis, multi weeks
+================
+
+``` r
+library(tidyverse)
+library(srvyr)
+library(rvest)
+library(rcartocolor)
+```
+
+``` r
+survey_share_by <- function(srvy, ..., digits = 2, vartype = "se") {
+  grp_vars <- quos(...)
+  srvy %>%
+    group_by(!!!grp_vars) %>%
+    summarise(share = survey_mean(vartype = vartype, level = 0.9)) %>%
+    mutate_at(vars(matches("share")), round, digits = digits)
+}
+
+compare_share <- function(srvy_lst, ...) {
+  srvy_lst %>%
+    map_dfr(survey_share_by, ..., .id = "name") %>%
+    mutate(name = as_factor(name) %>% fct_relabel(toupper))
+}
+
+combine_dimensions <- function(dfs, drop_col) {
+  dfs %>%
+    map(select, -{{ drop_col }}, -share_se) %>%
+    map_dfr(pivot_longer, -c(name, share), names_to = "dimension", values_to = "group",
+            names_ptypes = list(dimension = factor())) %>%
+    mutate(group = as_factor(ifelse(group == "total", as.character(name), as.character(group))))
+}
+```
+
+``` r
+week_dates <- read_html("https://www.census.gov/programs-surveys/household-pulse-survey/datasets.html") %>%
+  html_nodes("h4.uscb-h4") %>%
+  html_text() %>%
+  str_match_all("([A-Z][a-z]+ \\d{1,2})") %>%
+  map(~.[, 1]) %>%
+  rev() %>%
+  map(paste, "2020") %>%
+  map(lubridate::mdy) %>%
+  map(enframe, name = "pt", value = "date") %>%
+  map_dfr(mutate, pt = fct_recode(as.character(pt), start = "1", end = "2"), .id = "week") %>%
+  pivot_wider(names_from = pt, names_glue = "{pt}_{.value}", values_from = date) %>%
+  mutate(week = as.numeric(week))
+```
+
+``` r
+all_pums <- list.files(here::here("data/microdata"), full.names = TRUE) %>%
+  map(readRDS)
+
+pums_df <- all_pums %>% 
+  map(janitor::clean_names) %>%
+  map_dfr(select, state = est_st, week, pweight, birth_year = tbirth_year, gender = egender, rhispanic, rrace, hh_income = income, nkids = thhld_numkid, wrkloss, prior_food = prifoodsuf, current_food = curfoodsuf, delay_care = delay, miss_care = notget, tenure, last_housing = mortlmth, housing_conf = mortconf, internet = intrntavail, starts_with("foodsufr"), freefood, starts_with("wherefree")) %>%
+  mutate_at(vars(-state:-birth_year, -nkids), ~ifelse(. < 0, NA, .)) %>%
+  mutate_at(vars(-state:-birth_year, -nkids, -rhispanic, -rrace, -starts_with("foodsufr"), -starts_with("wherefree")), as.factor) %>%
+  mutate_at(vars(starts_with("foodsufr"), starts_with("wherefree")), as.logical) %>%
+  mutate(race = ifelse(rhispanic == 2, "latino", rrace) %>%
+           as.factor() %>%
+           fct_recode(white = "1", black = "2", asian = "3", other = "4") %>%
+           fct_relevel("white", "black", "latino"),
+         gender = fct_recode(gender, male = "1", female = "2"),
+         wrkloss = fct_recode(wrkloss, loss = "1", no_loss = "2"),
+         delay_care = fct_recode(delay_care, delayed = "1", no_delay = "2"),
+         miss_care = fct_recode(miss_care, missed = "1", no_miss = "2"),
+         tenure = fct_recode(tenure, own_in_full = "1", mortgage = "2", rent = "3", other = "4"),
+         last_housing = fct_recode(last_housing, on_time = "1", late = "2", deferred = "3"),
+         housing_conf = fct_collapse(housing_conf, not_confident = c("1", "2"), confident = c("3", "4"), deferred = "5"),
+         internet = fct_collapse(internet, always_usually = c("1", "2"), not_reliable = c("3", "4", "5")),
+         hh_income = fct_collapse(hh_income, under35 = c("1", "2"), income35_75 = c("3", "4"), income75_150 = c("5", "6"), income150_plus = c("7", "8")),
+         age = 2020 - birth_year,
+         kids_present = as.factor(ifelse(nkids > 0, "kids_in_house", "no_kids")),
+         freefood = fct_recode(freefood, received_food = "1", no_free_food = "2"),
+         age_range = cut(age, breaks = c(18, 34, 64, Inf), labels = c("ages18_34", "ages35_64", "ages65plus"), include.lowest = TRUE)
+  ) %>%
+  mutate_at(vars(prior_food, current_food), fct_collapse, secure = "1", not_kinds_wanted = "2", insecure = c("3", "4")) %>%
+  left_join(week_dates, by = "week") %>%
+  mutate(week = as.factor(week)) %>%
+  select(state, week, start_date, end_date, everything(), -rhispanic, -rrace, -birth_year)
+
+summary(pums_df)
+```
+
+    ##     state           week         start_date            end_date         
+    ##  Length:538953      1: 74413   Min.   :2020-04-23   Min.   :2020-05-05  
+    ##  Class :character   2: 41996   1st Qu.:2020-05-14   1st Qu.:2020-05-19  
+    ##  Mode  :character   3:132961   Median :2020-05-21   Median :2020-05-26  
+    ##                     4:101215   Mean   :2020-05-17   Mean   :2020-05-23  
+    ##                     5:105066   3rd Qu.:2020-05-28   3rd Qu.:2020-06-02  
+    ##                     6: 83302   Max.   :2020-06-04   Max.   :2020-06-09  
+    ##     pweight            gender                hh_income          nkids       
+    ##  Min.   :     2.0   male  :219580   under35       : 90194   Min.   :0.0000  
+    ##  1st Qu.:   292.7   female:319373   income35_75   :132691   1st Qu.:0.0000  
+    ##  Median :   842.5                   income75_150  :153714   Median :0.0000  
+    ##  Mean   :  2773.9                   income150_plus: 88073   Mean   :0.6636  
+    ##  3rd Qu.:  2404.1                   NA's          : 74281   3rd Qu.:1.0000  
+    ##  Max.   :370158.3                                           Max.   :5.0000  
+    ##     wrkloss                  prior_food               current_food   
+    ##  loss   :208814   secure          :410254   secure          :355116  
+    ##  no_loss:326988   not_kinds_wanted: 90877   not_kinds_wanted:140988  
+    ##  NA's   :  3151   insecure        : 27361   insecure        : 32212  
+    ##                   NA's            : 10461   NA's            : 10637  
+    ##                                                                      
+    ##                                                                      
+    ##     delay_care       miss_care              tenure         last_housing   
+    ##  delayed :210261   missed :163454   own_in_full:115157   on_time :319439  
+    ##  no_delay:270287   no_miss:317707   mortgage   :238076   late    : 26397  
+    ##  NA's    : 58405   NA's   : 57792   rent       :119851   deferred: 10601  
+    ##                                     other      :  6146   NA's    :182516  
+    ##                                     NA's       : 59723                    
+    ##                                                                           
+    ##         housing_conf              internet      foodsufrsn1    foodsufrsn2   
+    ##  not_confident: 46661   always_usually:119777   Mode:logical   Mode:logical  
+    ##  confident    :302664   not_reliable  :  8666   TRUE:60594     TRUE:18132    
+    ##  deferred     :  7407   NA's          :410510   NA's:478359    NA's:520821   
+    ##  NA's         :182221                                                        
+    ##                                                                              
+    ##                                                                              
+    ##  foodsufrsn3    foodsufrsn4    foodsufrsn5             freefood     
+    ##  Mode:logical   Mode:logical   Mode:logical   received_food: 31642  
+    ##  TRUE:45440     TRUE:12147     TRUE:93731     no_free_food :494889  
+    ##  NA's:493513    NA's:526806    NA's:445222    NA's         : 12422  
+    ##                                                                     
+    ##                                                                     
+    ##                                                                     
+    ##  wherefree1     wherefree2     wherefree3     wherefree4     wherefree5    
+    ##  Mode:logical   Mode:logical   Mode:logical   Mode:logical   Mode:logical  
+    ##  TRUE:14828     TRUE:6925      TRUE:1265      TRUE:3266      TRUE:302      
+    ##  NA's:524125    NA's:532028    NA's:537688    NA's:535687    NA's:538651   
+    ##                                                                            
+    ##                                                                            
+    ##                                                                            
+    ##  wherefree6     wherefree7         race             age      
+    ##  Mode:logical   Mode:logical   white :411794   Min.   :18.0  
+    ##  TRUE:6447      TRUE:6799      black : 39725   1st Qu.:39.0  
+    ##  NA's:532506    NA's:532154    latino: 44935   Median :51.0  
+    ##                                asian : 23818   Mean   :51.6  
+    ##                                other : 18681   3rd Qu.:64.0  
+    ##                                                Max.   :88.0  
+    ##         kids_present         age_range     
+    ##  kids_in_house:190338   ages18_34 : 88108  
+    ##  no_kids      :348615   ages35_64 :317442  
+    ##                         ages65plus:133403  
+    ##                                            
+    ##                                            
+    ## 
+
+``` r
+us_srvy <- as_survey_design(pums_df, weights = pweight)
+ct_srvy <- as_survey_design(pums_df %>% filter(state == "09"), weights = pweight)
+srvys <- lst(us_srvy, ct_srvy) %>% set_names(substr, 1, 2)
+
+trends <- list()
+by_group <- list()
+```
+
+# trends
+
+in general, there aren’t really any changes over time. so at least
+things aren’t getting *worse*, but don’t seem to be letting up either.
+interesting since some of the questions are cumulative, e.g. work loss
+is any loss since 3/13, so you’d imagine that number would continue to
+grow, but it hasn’t so far. suggests that by the time the first week of
+the survey was done (4/23), that damage had already been done.
+
+## lost work
+
+no change
+
+``` r
+trends$work_loss <- srvys %>%
+  map(filter, !is.na(wrkloss)) %>%
+  compare_share(week, wrkloss) %>%
+  filter(wrkloss == "loss") 
+```
+
+    ## Warning: The `add` argument of `group_by()` is deprecated as of dplyr 1.0.0.
+    ## Please use the `.add` argument instead.
+    ## This warning is displayed once every 8 hours.
+    ## Call `lifecycle::last_warnings()` to see where this warning was generated.
+
+``` r
+trends$work_loss
+```
+
+    ## # A tibble: 12 x 5
+    ##    name  week  wrkloss share share_se
+    ##    <fct> <fct> <fct>   <dbl>    <dbl>
+    ##  1 US    1     loss     0.47     0   
+    ##  2 US    2     loss     0.47     0.01
+    ##  3 US    3     loss     0.48     0.01
+    ##  4 US    4     loss     0.48     0   
+    ##  5 US    5     loss     0.48     0   
+    ##  6 US    6     loss     0.48     0   
+    ##  7 CT    1     loss     0.47     0.03
+    ##  8 CT    2     loss     0.46     0.04
+    ##  9 CT    3     loss     0.48     0.03
+    ## 10 CT    4     loss     0.47     0.03
+    ## 11 CT    5     loss     0.48     0.02
+    ## 12 CT    6     loss     0.46     0.03
+
+## food insecurity (current)
+
+not much of any change
+
+``` r
+trends$food_insecurity <- srvys %>%
+  map(filter, !is.na(current_food)) %>%
+  compare_share(week, current_food) %>%
+  filter(current_food == "insecure")
+```
+
+## delayed medical care
+
+US is steady, but CT trending up
+
+``` r
+trends$delayed_med_care <- srvys %>%
+  map(filter, !is.na(delay_care)) %>%
+  compare_share(week, delay_care) %>%
+  filter(delay_care == "delayed")
+
+trends$delayed_med_care %>%
+  mutate(week = as.numeric(week)) %>%
+  ggplot(aes(x = week, y = share, color = name)) +
+  geom_line(size = 0.8) +
+  geom_point() +
+  scale_color_carto_d(palette = "Vivid") +
+  scale_x_continuous(breaks = 1:6) +
+  labs(title = "delayed medical care")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+
+## missed care
+
+not changing
+
+``` r
+trends$missed_med_care <- srvys %>%
+  map(filter, !is.na(miss_care)) %>%
+  compare_share(week, miss_care) %>%
+  filter(miss_care == "missed")
+```
+
+## housing insecure—can’t pay next month
+
+not changing
+
+``` r
+trends$housing_insecurity <- srvys %>%
+  map(filter, !is.na(housing_conf)) %>%
+  compare_share(week, housing_conf) %>%
+  filter(housing_conf == "not_confident")
+```
+
+# by group
+
+## work loss
+
+``` r
+work_loss <- list()
+
+work_loss$total <- srvys %>%
+  map(filter, !is.na(wrkloss)) %>%
+  compare_share(total = "total", wrkloss)
+
+work_loss$by_age <- srvys %>%
+  map(filter, !is.na(wrkloss)) %>%
+  compare_share(age_range, wrkloss)
+
+work_loss$by_race <- srvys %>%
+  map(filter, !is.na(wrkloss), race != "other") %>%
+  compare_share(race, wrkloss)
+
+work_loss$by_income <- srvys %>%
+  map(filter, !is.na(wrkloss), !is.na(hh_income)) %>%
+  compare_share(hh_income, wrkloss)
+
+work_loss$by_kids <- srvys %>%
+  map(filter, !is.na(wrkloss)) %>%
+  compare_share(kids_present, wrkloss)
+
+by_group$work_loss <- work_loss %>%
+  map(filter, wrkloss == "loss") %>%
+  combine_dimensions(wrkloss)
+```
+
+## food insecurity (current)
+
+``` r
+food_insecurity <- list()
+
+food_insecurity$total <- srvys %>%
+  map(filter, !is.na(current_food)) %>%
+  compare_share(total = "total", current_food)
+
+food_insecurity$by_age <- srvys %>%
+  map(filter, !is.na(current_food)) %>%
+  compare_share(age_range, current_food)
+
+food_insecurity$by_race <- srvys %>%
+  map(filter, !is.na(current_food), race != "other") %>%
+  compare_share(race, current_food)
+
+food_insecurity$by_income <- srvys %>%
+  map(filter, !is.na(current_food), !is.na(hh_income)) %>%
+  compare_share(hh_income, current_food)
+
+food_insecurity$by_kids <- srvys %>%
+  map(filter, !is.na(current_food)) %>%
+  compare_share(kids_present, current_food)
+
+by_group$food_insecurity <- food_insecurity %>%
+  map(filter, current_food == "insecure") %>%
+  combine_dimensions(current_food)
+```
+
+change less in share not having enough food, but share having limited
+options
+
+``` r
+by_group$food_insecurity_change <- list(
+  srvys %>%
+    map(filter, !is.na(prior_food), !is.na(current_food)) %>%
+    compare_share(kids_present, prior_food) %>%
+    filter(prior_food != "secure"),
+  srvys %>%
+    map(filter, !is.na(prior_food), !is.na(current_food)) %>%
+    compare_share(kids_present, current_food) %>%
+    filter(current_food != "secure")
+) %>%
+  map(select, -share_se) %>%
+  map_dfr(pivot_longer, ends_with("_food"), names_to = "variable", values_to = "group", names_ptypes = list(variable = factor()))
+
+by_group$food_insecurity_change %>%
+  ggplot(aes(x = variable, y = share, fill = group)) +
+  geom_col(position = position_stack(), width = 0.8) +
+  scale_fill_carto_d(palette = "Vivid") +
+  facet_wrap(vars(name, kids_present)) +
+  labs(title = "previous vs current food insecurity")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+
+## delayed care
+
+``` r
+delayed_med_care <- list()
+
+delayed_med_care$total <- srvys %>%
+  map(filter, !is.na(delay_care)) %>%
+  compare_share(total = "total", delay_care)
+
+delayed_med_care$by_age <- srvys %>%
+  map(filter, !is.na(delay_care)) %>%
+  compare_share(age_range, delay_care)
+
+delayed_med_care$by_race <- srvys %>%
+  map(filter, !is.na(delay_care), race != "other") %>%
+  compare_share(race, delay_care)
+
+delayed_med_care$by_income <- srvys %>%
+  map(filter, !is.na(delay_care), !is.na(hh_income)) %>%
+  compare_share(hh_income, delay_care)
+
+delayed_med_care$by_kids <- srvys %>%
+  map(filter, !is.na(delay_care)) %>%
+  compare_share(kids_present, delay_care)
+
+by_group$delayed_med_care <- delayed_med_care %>%
+  map(filter, delay_care == "delayed") %>%
+  combine_dimensions(delay_care)
+```
+
+## missed care
+
+``` r
+missed_med_care <- list()
+
+missed_med_care$total <- srvys %>%
+  map(filter, !is.na(miss_care)) %>%
+  compare_share(total = "total", miss_care)
+
+missed_med_care$by_age <- srvys %>%
+  map(filter, !is.na(miss_care)) %>%
+  compare_share(age_range, miss_care)
+
+missed_med_care$by_race <- srvys %>%
+  map(filter, !is.na(miss_care), race != "other") %>%
+  compare_share(race, miss_care)
+
+missed_med_care$by_income <- srvys %>%
+  map(filter, !is.na(miss_care), !is.na(hh_income)) %>%
+  compare_share(hh_income, miss_care)
+
+missed_med_care$by_kids <- srvys %>%
+  map(filter, !is.na(miss_care)) %>%
+  compare_share(kids_present, miss_care)
+
+by_group$missed_med_care <- missed_med_care %>%
+  map(filter, miss_care == "missed") %>%
+  combine_dimensions(miss_care)
+```
+
+## housing insecurity—next month
+
+``` r
+housing_insecurity <- list()
+
+housing_insecurity$total <- srvys %>%
+  map(filter, !is.na(housing_conf)) %>%
+  compare_share(total = "total", housing_conf)
+
+housing_insecurity$by_age <- srvys %>%
+  map(filter, !is.na(housing_conf)) %>%
+  compare_share(age_range, housing_conf)
+
+housing_insecurity$by_race <- srvys %>%
+  map(filter, !is.na(housing_conf), race != "other") %>%
+  compare_share(race, housing_conf)
+
+housing_insecurity$by_income <- srvys %>%
+  map(filter, !is.na(housing_conf), !is.na(hh_income)) %>%
+  compare_share(hh_income, housing_conf) 
+
+housing_insecurity$by_kids <- srvys %>%
+  map(filter, !is.na(housing_conf)) %>%
+  compare_share(kids_present, housing_conf) 
+
+by_group$housing_insecurity <- housing_insecurity %>%
+  map(filter, housing_conf == "not_confident") %>%
+  combine_dimensions(housing_conf)
+```
+
+### renters only
+
+``` r
+renter_insecurity <- list()
+
+renter_insecurity$total <- srvys %>%
+  map(filter, !is.na(housing_conf), tenure == "rent") %>%
+  compare_share(total = "total", housing_conf)
+
+renter_insecurity$by_age <- srvys %>%
+  map(filter, !is.na(housing_conf), tenure == "rent") %>%
+  compare_share(age_range, housing_conf)
+
+renter_insecurity$by_race <- srvys %>%
+  map(filter, !is.na(housing_conf), race != "other", tenure == "rent") %>%
+  compare_share(race, housing_conf)
+
+renter_insecurity$by_income <- srvys %>%
+  map(filter, !is.na(housing_conf), !is.na(hh_income), tenure == "rent") %>%
+  compare_share(hh_income, housing_conf) 
+
+renter_insecurity$by_kids <- srvys %>%
+  map(filter, !is.na(housing_conf), tenure == "rent") %>%
+  compare_share(kids_present, housing_conf)
+
+by_group$renter_insecurity <- renter_insecurity %>%
+  map(filter, housing_conf == "not_confident") %>%
+  combine_dimensions(housing_conf)
+```
+
+## internet reliably available for kids’ education
+
+kinda messy & large MOEs, not keeping
+
+``` r
+internet_kids <- list()
+
+internet_kids$total <- srvys %>%
+  map(filter, !is.na(internet)) %>%
+  compare_share(total = "total", internet)
+
+internet_kids$by_race <- srvys %>%
+  map(filter, !is.na(internet), race != "other") %>%
+  compare_share(race, internet)
+
+internet_kids$by_income <- srvys %>%
+  map(filter, !is.na(internet), !is.na(hh_income)) %>%
+  compare_share(hh_income, internet) 
+
+
+# messy
+internet_kids <- internet_kids %>%
+  map(filter, internet == "not_reliable") %>%
+  combine_dimensions(internet)
+```
+
+``` r
+compare_bars <- function(df) {
+  ggplot(df, aes(x = fct_rev(group), y = share, fill = dimension)) +
+  geom_col(width = 0.8) +
+  coord_flip() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)), labels = scales::percent_format(accuracy = 1)) +
+  scale_fill_carto_d(palette = "Vivid") +
+  facet_grid(rows = vars(dimension), scales = "free_y", space = "free") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.ticks = element_blank(),
+        plot.title.position = "plot") +
+    labs(subtitle = "CT groups, all weeks", x = NULL, y = NULL)
+}
+```
+
+``` r
+by_group$work_loss %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(x = NULL, y = NULL,
+       title = "loss of employment income since 3/13")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+
+``` r
+by_group$food_insecurity %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(x = NULL, y = NULL,
+       title = "food insecurity in past 7 days")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
+
+``` r
+by_group$delayed_med_care  %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(x = NULL, y = NULL,
+       title = "delayed medical care in past 4 weeks")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-20-3.png)<!-- -->
+
+``` r
+by_group$missed_med_care  %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(x = NULL, y = NULL,
+       title = "missed medical care not related to covid in past 4 weeks")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-20-4.png)<!-- -->
+
+``` r
+by_group$housing_insecurity %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(x = NULL, y = NULL,
+       title = "little/no confidence in making next housing payment")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-20-5.png)<!-- -->
+
+``` r
+by_group$renter_insecurity %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(x = NULL, y = NULL,
+       title = "little/no confidence in making next housing payment--renters only")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-20-6.png)<!-- -->
+
+``` r
+saveRDS(trends, here::here("output_data/hhp_trends.rds"))
+saveRDS(by_group, here::here("output_data/hhp_by_group.rds"))
+```
+
+# specific food access questions
+
+food sufficiency questions universe: current food not enough / not types
+wanted
+
+``` r
+# just a little easier to label food vars separately
+food_df <- pums_df %>%
+  select(state:hh_income, race, age_range, kids_present, current_food, cant_afford = foodsufrsn1, transportation = foodsufrsn2, need_delivered = foodsufrsn4, freefood, school = wherefree1, pantry = wherefree2, home_delivery = wherefree3, church = wherefree4, shelter = wherefree5, comm_program = wherefree6, family = wherefree7) %>%
+  mutate_at(vars(cant_afford:need_delivered), ~case_when(
+    current_food == "secure" ~ NA_character_,
+    is.na(.) ~ "didnt_need",
+    TRUE ~ "needed"
+  ) %>% as.factor()) %>%
+  mutate_at(vars(school:family), ~case_when(
+    freefood == "no_free_food" ~ NA_character_,
+    is.na(.) ~ "didnt_use_source",
+    TRUE ~ "used_source"
+  ) %>% as.factor())
+
+summary(food_df)
+```
+
+    ##     state           week         start_date            end_date         
+    ##  Length:538953      1: 74413   Min.   :2020-04-23   Min.   :2020-05-05  
+    ##  Class :character   2: 41996   1st Qu.:2020-05-14   1st Qu.:2020-05-19  
+    ##  Mode  :character   3:132961   Median :2020-05-21   Median :2020-05-26  
+    ##                     4:101215   Mean   :2020-05-17   Mean   :2020-05-23  
+    ##                     5:105066   3rd Qu.:2020-05-28   3rd Qu.:2020-06-02  
+    ##                     6: 83302   Max.   :2020-06-04   Max.   :2020-06-09  
+    ##     pweight            gender                hh_income          race       
+    ##  Min.   :     2.0   male  :219580   under35       : 90194   white :411794  
+    ##  1st Qu.:   292.7   female:319373   income35_75   :132691   black : 39725  
+    ##  Median :   842.5                   income75_150  :153714   latino: 44935  
+    ##  Mean   :  2773.9                   income150_plus: 88073   asian : 23818  
+    ##  3rd Qu.:  2404.1                   NA's          : 74281   other : 18681  
+    ##  Max.   :370158.3                                                          
+    ##       age_range             kids_present              current_food   
+    ##  ages18_34 : 88108   kids_in_house:190338   secure          :355116  
+    ##  ages35_64 :317442   no_kids      :348615   not_kinds_wanted:140988  
+    ##  ages65plus:133403                          insecure        : 32212  
+    ##                                             NA's            : 10637  
+    ##                                                                      
+    ##                                                                      
+    ##      cant_afford        transportation      need_delivered  
+    ##  didnt_need:123243   didnt_need:165705   didnt_need:171690  
+    ##  needed    : 60594   needed    : 18132   needed    : 12147  
+    ##  NA's      :355116   NA's      :355116   NA's      :355116  
+    ##                                                             
+    ##                                                             
+    ##                                                             
+    ##           freefood                   school                    pantry      
+    ##  received_food: 31642   didnt_use_source: 29236   didnt_use_source: 37139  
+    ##  no_free_food :494889   used_source     : 14828   used_source     :  6925  
+    ##  NA's         : 12422   NA's            :494889   NA's            :494889  
+    ##                                                                            
+    ##                                                                            
+    ##                                                                            
+    ##           home_delivery                 church                   shelter      
+    ##  didnt_use_source: 42799   didnt_use_source: 40798   didnt_use_source: 43762  
+    ##  used_source     :  1265   used_source     :  3266   used_source     :   302  
+    ##  NA's            :494889   NA's            :494889   NA's            :494889  
+    ##                                                                               
+    ##                                                                               
+    ##                                                                               
+    ##            comm_program                 family      
+    ##  didnt_use_source: 37617   didnt_use_source: 37265  
+    ##  used_source     :  6447   used_source     :  6799  
+    ##  NA's            :494889   NA's            :494889  
+    ##                                                     
+    ##                                                     
+    ## 
+
+``` r
+fsrvys <- list(
+  us = as_survey_design(food_df, weights = pweight),
+  ct = as_survey_design(food_df %>% filter(state == "09"), weights = pweight)
+)
+```
+
+## sources of free food
+
+of adults getting free food in past 7 days
+
+``` r
+food_sources <- list()
+```
+
+``` r
+# these should be functions
+school <- list()
+school$total <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(school)) %>%
+  compare_share(total = "total", school)
+
+school$by_gender <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(school)) %>%
+  compare_share(gender, school)
+
+school$by_race <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(school), race != "other") %>%
+  compare_share(race, school)
+
+school$by_age <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(school)) %>%
+  compare_share(age_range, school)
+
+school$kids_present <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(school)) %>%
+  compare_share(kids_present, school)
+
+food_sources$school <- school %>%
+  map(filter, school == "used_source") %>%
+  combine_dimensions(school)
+```
+
+``` r
+pantry <- list()
+pantry$total <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(pantry)) %>%
+  compare_share(total = "total", pantry)
+
+pantry$by_gender <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(pantry)) %>%
+  compare_share(gender, pantry)
+
+pantry$by_race <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(pantry), race != "other") %>%
+  compare_share(race, pantry)
+
+pantry$by_age <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(pantry)) %>%
+  compare_share(age_range, pantry)
+
+pantry$kids_present <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(pantry)) %>%
+  compare_share(kids_present, pantry)
+
+food_sources$pantry <- pantry %>%
+  map(filter, pantry == "used_source") %>%
+  combine_dimensions(pantry)
+```
+
+``` r
+family <- list()
+family$total <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(family)) %>%
+  compare_share(total = "total", family)
+
+family$by_gender <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(family)) %>%
+  compare_share(gender, family)
+
+family$by_race <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(family), race != "other") %>%
+  compare_share(race, family)
+
+family$by_age <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(family)) %>%
+  compare_share(age_range, family)
+
+family$kids_present <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(family)) %>%
+  compare_share(kids_present, family)
+
+food_sources$family <- family %>%
+  map(filter, family == "used_source") %>%
+  combine_dimensions(family)
+```
+
+``` r
+food_sources$school %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(title = "received free food through schools, other kids' programs",
+       caption = "of adults receiving free food in past 7 days")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+
+``` r
+food_sources$family %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(title = "received free food through family or friends",
+       caption = "of adults receiving free food in past 7 days")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
+
+``` r
+food_sources$pantry %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(title = "received free food through food pantry / food bank",
+       caption = "of adults receiving free food in past 7 days")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+
+Key takeaway: people living with kids rely heavily on schools for food,
+whereas people not living with kids & seniors rely heavily on food
+pantries & food banks.
+
+## barriers to food access
+
+of adults experiencing shortage of food / desired types of food in past
+7 days
+
+``` r
+food_barriers <- list()
+```
+
+``` r
+cant_afford <- list()
+cant_afford$total <- fsrvys %>%
+  map(filter, !is.na(current_food), !is.na(cant_afford)) %>%
+  compare_share(total = "total", cant_afford)
+
+cant_afford$by_gender <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(cant_afford)) %>%
+  compare_share(gender, cant_afford)
+
+cant_afford$by_race <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(cant_afford), race != "other") %>%
+  compare_share(race, cant_afford)
+
+cant_afford$by_age <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(cant_afford)) %>%
+  compare_share(age_range, cant_afford)
+
+cant_afford$kids_present <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(cant_afford)) %>%
+  compare_share(kids_present, cant_afford)
+
+food_barriers$cant_afford <- cant_afford %>%
+  map(filter, cant_afford == "needed") %>%
+  combine_dimensions(cant_afford)
+```
+
+``` r
+transportation <- list()
+transportation$total <- fsrvys %>%
+  map(filter, !is.na(current_food), !is.na(transportation)) %>%
+  compare_share(total = "total", transportation)
+
+transportation$by_gender <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(transportation)) %>%
+  compare_share(gender, transportation)
+
+transportation$by_race <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(transportation), race != "other") %>%
+  compare_share(race, transportation)
+
+transportation$by_age <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(transportation)) %>%
+  compare_share(age_range, transportation)
+
+transportation$kids_present <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(transportation)) %>%
+  compare_share(kids_present, transportation)
+
+food_barriers$transportation <- transportation %>%
+  map(filter, transportation == "needed") %>%
+  combine_dimensions(transportation)
+```
+
+``` r
+need_delivered <- list()
+need_delivered$total <- fsrvys %>%
+  map(filter, !is.na(current_food), !is.na(need_delivered)) %>%
+  compare_share(total = "total", need_delivered)
+
+need_delivered$by_gender <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(need_delivered)) %>%
+  compare_share(gender, need_delivered)
+
+need_delivered$by_race <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(need_delivered), race != "other") %>%
+  compare_share(race, need_delivered)
+
+need_delivered$by_age <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(need_delivered)) %>%
+  compare_share(age_range, need_delivered)
+
+need_delivered$kids_present <- fsrvys %>%
+  map(filter, !is.na(freefood), !is.na(need_delivered)) %>%
+  compare_share(kids_present, need_delivered)
+
+food_barriers$need_delivered <- need_delivered %>%
+  map(filter, need_delivered == "needed") %>%
+  combine_dimensions(need_delivered)
+```
+
+``` r
+food_barriers$cant_afford %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(title = "couldn't afford food",
+       caption = "of adults not having enough / desired food in past 7 days")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+
+``` r
+food_barriers$transportation %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(title = "needed transportation to get food",
+       caption = "of adults not having enough / desired food in past 7 days")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
+
+``` r
+food_barriers$need_delivered %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(title = "needed food delivered",
+       caption = "of adults not having enough / desired food in past 7 days")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
+
+``` r
+saveRDS(food_sources, here::here("output_data/hhp_sources_of_food.rds"))
+saveRDS(food_barriers, here::here("output_data/hhp_barriers_to_food.rds"))
+```

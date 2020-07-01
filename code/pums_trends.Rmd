@@ -16,31 +16,57 @@ library(tidyverse)
 library(srvyr)
 library(rvest)
 library(rcartocolor)
+library(ggalluvial)
 ```
 
+# functions & cleanup
+
 ```{r}
-survey_share_by <- function(srvy, ..., digits = 2, vartype = "se") {
+survey_share_by <- function(srvy, ..., .add, digits = 2, vartype = "se") {
   grp_vars <- quos(...)
+  # dplyr has moved to .add, but srvyr not updated yet
   srvy %>%
-    group_by(!!!grp_vars) %>%
+    group_by(!!!grp_vars, add = .add) %>%
     summarise(share = survey_mean(vartype = vartype, level = 0.9)) %>%
-    mutate_at(vars(matches("share")), round, digits = digits)
+    mutate_at(vars(matches("share")), signif, digits = digits)
 }
 
-compare_share <- function(srvy_lst, ...) {
+compare_share <- function(srvy_lst, ..., .add = TRUE) {
   srvy_lst %>%
-    map_dfr(survey_share_by, ..., .id = "name") %>%
+    map_dfr(survey_share_by, ..., .add = .add, .id = "name") %>%
     mutate(name = as_factor(name) %>% fct_relabel(toupper))
 }
 
-combine_dimensions <- function(dfs, drop_col) {
+compare_grps <- function(srvy_list = srvys, col, total = TRUE, gender = TRUE, age_range = TRUE, race = TRUE, hh_income = TRUE, kids_present = TRUE) {
+  # still kinda redundant
+  filtered <- srvy_list %>%
+    map(filter, !is.na({{ col }}))
+  
+  out <- list()
+  
+  if (total) out$total <- compare_share(filtered, total = "total", {{ col }})
+  if (gender) out$by_gender <- compare_share(filtered, gender, {{ col }})
+  if (age_range) out$by_age <- compare_share(filtered, age_range, {{ col }})
+  if (race) out$by_race <- compare_share(filtered, race, {{ col }})
+  if (hh_income) out$by_income <- compare_share(filtered, hh_income, {{ col }})
+  if (kids_present) out$by_kids <- compare_share(filtered, kids_present, {{ col }})
+  
+  out
+}
+
+combine_dimensions <- function(dfs, ...) {
+  drop_vars <- quos(...)
   dfs %>%
-    map(select, -{{ drop_col }}, -share_se) %>%
-    map_dfr(pivot_longer, -c(name, share), names_to = "dimension", values_to = "group",
+    map(ungroup) %>%
+    # map(select, -{{ drop_col }}, -share_se) %>%
+    map_dfr(pivot_longer, -c(name, starts_with("share"), !!!drop_vars), names_to = "dimension", values_to = "group",
             names_ptypes = list(dimension = factor())) %>%
+    filter(!is.na(group)) %>%
     mutate(group = as_factor(ifelse(group == "total", as.character(name), as.character(group))))
 }
 ```
+
+
 
 ```{r}
 week_dates <- read_html("https://www.census.gov/programs-surveys/household-pulse-survey/datasets.html") %>%
@@ -80,16 +106,17 @@ pums_df <- all_pums %>%
          last_housing = fct_recode(last_housing, on_time = "1", late = "2", deferred = "3"),
          housing_conf = fct_collapse(housing_conf, not_confident = c("1", "2"), confident = c("3", "4"), deferred = "5"),
          internet = fct_collapse(internet, always_usually = c("1", "2"), not_reliable = c("3", "4", "5")),
-         hh_income = fct_collapse(hh_income, under35 = c("1", "2"), income35_75 = c("3", "4"), income75_150 = c("5", "6"), income150_plus = c("7", "8")),
+         hh_income = fct_collapse(hh_income, under35k = c("1", "2"), income35k_75k = c("3", "4"), income75k_150k = c("5", "6"), income150k_plus = c("7", "8")),
          age = 2020 - birth_year,
          kids_present = as.factor(ifelse(nkids > 0, "kids_in_house", "no_kids")),
          freefood = fct_recode(freefood, received_food = "1", no_free_food = "2"),
-         age_range = cut(age, breaks = c(18, 34, 64, Inf), labels = c("ages18_34", "ages35_64", "ages65plus"), include.lowest = TRUE)
+         age_range = cut(age, breaks = c(18, 34, 64, Inf), labels = c("ages18_34", "ages35_64", "ages65plus"), include.lowest = TRUE),
+         wks_incl = paste(range(as.numeric(week)), collapse = "_")
   ) %>%
   mutate_at(vars(prior_food, current_food), fct_collapse, secure = "1", not_kinds_wanted = "2", insecure = c("3", "4")) %>%
   left_join(week_dates, by = "week") %>%
   mutate(week = as.factor(week)) %>%
-  select(state, week, start_date, end_date, everything(), -rhispanic, -rrace, -birth_year)
+  select(state, wks_incl, week, start_date, end_date, everything(), -rhispanic, -rrace, -birth_year)
 
 summary(pums_df)
 ```
@@ -97,7 +124,10 @@ summary(pums_df)
 ```{r}
 us_srvy <- as_survey_design(pums_df, weights = pweight)
 ct_srvy <- as_survey_design(pums_df %>% filter(state == "09"), weights = pweight)
-srvys <- lst(us_srvy, ct_srvy) %>% set_names(substr, 1, 2)
+srvys <- lst(us_srvy, ct_srvy) %>% 
+  set_names(substr, 1, 2) %>%
+  # assume grouped for all weeks
+  map(group_by, wks_incl)
 
 trends <- list()
 by_group <- list()
@@ -130,6 +160,9 @@ trends$food_insecurity <- srvys %>%
   compare_share(week, current_food) %>%
   filter(current_food == "insecure")
 ```
+
+
+
 
 ## delayed medical care
 
@@ -173,72 +206,69 @@ trends$housing_insecurity <- srvys %>%
   filter(housing_conf == "not_confident")
 ```
 
+## food insecurity: current vs prior
 
+pretty interesting: only 2 percent of people that were secure before pandemic are insecure currently, but 20 percent no longer have food they *want*. Vast majority stay in whatever condition they were already in. Not too many dropped from secure to insecure, and 16 percent of insecure moved up to not having kinds of food wanted—maybe due to amount of food giveaways now happening?
+
+```{r}
+trends$food_insecurity_change <- srvys %>%
+  map(filter, !is.na(current_food), !is.na(prior_food)) %>%
+  compare_share(prior_food, current_food)
+
+trends$food_insecurity_change
+```
+
+Note this just shows shares within each prior group, not shares of the total population
+
+```{r}
+trends$food_insecurity_change %>%
+  filter(name == "CT") %>%
+  select(name, prior_food, current_food, share) %>%
+  mutate(id = paste(prior_food, current_food, sep = ",")) %>%
+  pivot_longer(ends_with("food"), names_to = "point", names_ptypes = list(point = factor())) %>%
+  ggplot(aes(y = share, x = point, stratum = value, alluvium = id)) +
+  geom_alluvium(aes(fill = id), alpha = 0.9) +
+  geom_stratum(width = 1/8) +
+  geom_text(stat = "stratum", infer.label = TRUE, angle = 90, size = 2.8) +
+  scale_fill_manual(values = c(carto_pal(3, "RedOr"), carto_pal(3, "Purp"), carto_pal(3, "Teal"))) +
+  theme_minimal()
+```
+
+Flipped around: of the people currently food insecure, what was their condition before pandemic? CT data is pretty messy
+
+```{r}
+trends$became_food_insecure <- srvys %>%
+  map(filter, !is.na(current_food), !is.na(prior_food)) %>%
+  compare_share(week, current_food, prior_food) %>%
+  filter(current_food == "insecure")
+
+trends$became_food_insecure %>%
+  filter(name == "US") %>%
+  ggplot(aes(x = as.numeric(week), y = share, fill = prior_food, color = prior_food)) +
+  geom_line()
+```
 
 
 # by group
 
+
+
 ## work loss
 
-```{r}
-work_loss <- list()
-
-work_loss$total <- srvys %>%
-  map(filter, !is.na(wrkloss)) %>%
-  compare_share(total = "total", wrkloss)
-
-work_loss$by_age <- srvys %>%
-  map(filter, !is.na(wrkloss)) %>%
-  compare_share(age_range, wrkloss)
-
-work_loss$by_race <- srvys %>%
-  map(filter, !is.na(wrkloss), race != "other") %>%
-  compare_share(race, wrkloss)
-
-work_loss$by_income <- srvys %>%
-  map(filter, !is.na(wrkloss), !is.na(hh_income)) %>%
-  compare_share(hh_income, wrkloss)
-
-work_loss$by_kids <- srvys %>%
-  map(filter, !is.na(wrkloss)) %>%
-  compare_share(kids_present, wrkloss)
-
-by_group$work_loss <- work_loss %>%
+```{r message=TRUE, warning=TRUE}
+by_group$work_loss <- srvys %>%
+  compare_grps(wrkloss) %>%
   map(filter, wrkloss == "loss") %>%
-  combine_dimensions(wrkloss)
+  combine_dimensions(c(wks_incl, wrkloss))
 ```
-
-
-
 
 ## food insecurity (current)
 
 ```{r}
-food_insecurity <- list()
-
-food_insecurity$total <- srvys %>%
-  map(filter, !is.na(current_food)) %>%
-  compare_share(total = "total", current_food)
-
-food_insecurity$by_age <- srvys %>%
-  map(filter, !is.na(current_food)) %>%
-  compare_share(age_range, current_food)
-
-food_insecurity$by_race <- srvys %>%
-  map(filter, !is.na(current_food), race != "other") %>%
-  compare_share(race, current_food)
-
-food_insecurity$by_income <- srvys %>%
-  map(filter, !is.na(current_food), !is.na(hh_income)) %>%
-  compare_share(hh_income, current_food)
-
-food_insecurity$by_kids <- srvys %>%
-  map(filter, !is.na(current_food)) %>%
-  compare_share(kids_present, current_food)
-
-by_group$food_insecurity <- food_insecurity %>%
+by_group$food_insecurity <- srvys %>%
+  compare_grps(current_food) %>%
   map(filter, current_food == "insecure") %>%
-  combine_dimensions(current_food)
+  combine_dimensions(c(wks_incl, current_food))
 ```
 
 change less in share not having enough food, but share having limited options
@@ -265,126 +295,52 @@ by_group$food_insecurity_change %>%
   labs(title = "previous vs current food insecurity")
 ```
 
+## received free food
+
+```{r}
+by_group$free_food <- srvys %>%
+  compare_grps(freefood) %>%
+  map(filter, freefood == "received_food") %>%
+  combine_dimensions(c(wks_incl, freefood))
+```
+
+
 ## delayed care
 
 ```{r}
-delayed_med_care <- list()
-
-delayed_med_care$total <- srvys %>%
-  map(filter, !is.na(delay_care)) %>%
-  compare_share(total = "total", delay_care)
-
-delayed_med_care$by_age <- srvys %>%
-  map(filter, !is.na(delay_care)) %>%
-  compare_share(age_range, delay_care)
-
-delayed_med_care$by_race <- srvys %>%
-  map(filter, !is.na(delay_care), race != "other") %>%
-  compare_share(race, delay_care)
-
-delayed_med_care$by_income <- srvys %>%
-  map(filter, !is.na(delay_care), !is.na(hh_income)) %>%
-  compare_share(hh_income, delay_care)
-
-delayed_med_care$by_kids <- srvys %>%
-  map(filter, !is.na(delay_care)) %>%
-  compare_share(kids_present, delay_care)
-
-by_group$delayed_med_care <- delayed_med_care %>%
+by_group$delayed_med_care <- srvys %>%
+  compare_grps(delay_care) %>%
   map(filter, delay_care == "delayed") %>%
-  combine_dimensions(delay_care)
+  combine_dimensions(c(wks_incl, delay_care))
 ```
 
 ## missed care
 
 ```{r}
-missed_med_care <- list()
-
-missed_med_care$total <- srvys %>%
-  map(filter, !is.na(miss_care)) %>%
-  compare_share(total = "total", miss_care)
-
-missed_med_care$by_age <- srvys %>%
-  map(filter, !is.na(miss_care)) %>%
-  compare_share(age_range, miss_care)
-
-missed_med_care$by_race <- srvys %>%
-  map(filter, !is.na(miss_care), race != "other") %>%
-  compare_share(race, miss_care)
-
-missed_med_care$by_income <- srvys %>%
-  map(filter, !is.na(miss_care), !is.na(hh_income)) %>%
-  compare_share(hh_income, miss_care)
-
-missed_med_care$by_kids <- srvys %>%
-  map(filter, !is.na(miss_care)) %>%
-  compare_share(kids_present, miss_care)
-
-by_group$missed_med_care <- missed_med_care %>%
+by_group$missed_med_care <- srvys %>%
+  compare_grps(miss_care) %>%
   map(filter, miss_care == "missed") %>%
-  combine_dimensions(miss_care)
+  combine_dimensions(c(wks_incl, miss_care))
 ```
 
 
 ## housing insecurity—next month
 
 ```{r}
-housing_insecurity <- list()
-
-housing_insecurity$total <- srvys %>%
-  map(filter, !is.na(housing_conf)) %>%
-  compare_share(total = "total", housing_conf)
-
-housing_insecurity$by_age <- srvys %>%
-  map(filter, !is.na(housing_conf)) %>%
-  compare_share(age_range, housing_conf)
-
-housing_insecurity$by_race <- srvys %>%
-  map(filter, !is.na(housing_conf), race != "other") %>%
-  compare_share(race, housing_conf)
-
-housing_insecurity$by_income <- srvys %>%
-  map(filter, !is.na(housing_conf), !is.na(hh_income)) %>%
-  compare_share(hh_income, housing_conf) 
-
-housing_insecurity$by_kids <- srvys %>%
-  map(filter, !is.na(housing_conf)) %>%
-  compare_share(kids_present, housing_conf) 
-
-by_group$housing_insecurity <- housing_insecurity %>%
+by_group$housing_insecurity <- srvys %>%
+  compare_grps(housing_conf) %>%
   map(filter, housing_conf == "not_confident") %>%
-  combine_dimensions(housing_conf)
-
+  combine_dimensions(c(wks_incl, housing_conf))
 ```
 
 ### renters only
 
 ```{r}
-renter_insecurity <- list()
-
-renter_insecurity$total <- srvys %>%
-  map(filter, !is.na(housing_conf), tenure == "rent") %>%
-  compare_share(total = "total", housing_conf)
-
-renter_insecurity$by_age <- srvys %>%
-  map(filter, !is.na(housing_conf), tenure == "rent") %>%
-  compare_share(age_range, housing_conf)
-
-renter_insecurity$by_race <- srvys %>%
-  map(filter, !is.na(housing_conf), race != "other", tenure == "rent") %>%
-  compare_share(race, housing_conf)
-
-renter_insecurity$by_income <- srvys %>%
-  map(filter, !is.na(housing_conf), !is.na(hh_income), tenure == "rent") %>%
-  compare_share(hh_income, housing_conf) 
-
-renter_insecurity$by_kids <- srvys %>%
-  map(filter, !is.na(housing_conf), tenure == "rent") %>%
-  compare_share(kids_present, housing_conf)
-
-by_group$renter_insecurity <- renter_insecurity %>%
+by_group$renter_insecurity <- srvys %>%
+  map(filter, tenure == "rent") %>%
+  compare_grps(housing_conf) %>%
   map(filter, housing_conf == "not_confident") %>%
-  combine_dimensions(housing_conf)
+  combine_dimensions(c(wks_incl, housing_conf))
 ```
 
 ## internet reliably available for kids' education
@@ -392,26 +348,11 @@ by_group$renter_insecurity <- renter_insecurity %>%
 kinda messy & large MOEs, not keeping
 
 ```{r}
-internet_kids <- list()
-
-internet_kids$total <- srvys %>%
-  map(filter, !is.na(internet)) %>%
-  compare_share(total = "total", internet)
-
-internet_kids$by_race <- srvys %>%
-  map(filter, !is.na(internet), race != "other") %>%
-  compare_share(race, internet)
-
-internet_kids$by_income <- srvys %>%
-  map(filter, !is.na(internet), !is.na(hh_income)) %>%
-  compare_share(hh_income, internet) 
-
-
 # messy
-internet_kids <- internet_kids %>%
+internet_no_output <- srvys %>%
+  compare_grps(internet, age_range = FALSE, kids_present = FALSE) %>%
   map(filter, internet == "not_reliable") %>%
-  combine_dimensions(internet)
-
+  combine_dimensions(c(wks_incl, internet))
 ```
 
 ```{r}
@@ -432,6 +373,8 @@ compare_bars <- function(df) {
 
 
 ```{r}
+by_group <- by_group %>% map(filter, group != "other")
+
 by_group$work_loss %>%
   filter(name == "CT" | dimension == "total") %>%
   compare_bars() +
@@ -481,7 +424,7 @@ saveRDS(by_group, here::here("output_data/hhp_by_group.rds"))
 food sufficiency questions universe: current food not enough / not types wanted
 
 ```{r}
-# just a little easier to label food vars separately
+# just a little easier to handle food vars separately
 food_df <- pums_df %>%
   select(state:hh_income, race, age_range, kids_present, current_food, cant_afford = foodsufrsn1, transportation = foodsufrsn2, need_delivered = foodsufrsn4, freefood, school = wherefree1, pantry = wherefree2, home_delivery = wherefree3, church = wherefree4, shelter = wherefree5, comm_program = wherefree6, family = wherefree7) %>%
   mutate_at(vars(cant_afford:need_delivered), ~case_when(
@@ -500,7 +443,8 @@ summary(food_df)
 fsrvys <- list(
   us = as_survey_design(food_df, weights = pweight),
   ct = as_survey_design(food_df %>% filter(state == "09"), weights = pweight)
-)
+) %>%
+  map(group_by, wks_incl)
 
 ```
 
@@ -512,87 +456,33 @@ of adults getting free food in past 7 days
 food_sources <- list()
 ```
 
+
+
 ```{r}
-# these should be functions
-school <- list()
-school$total <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(school)) %>%
-  compare_share(total = "total", school)
-
-school$by_gender <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(school)) %>%
-  compare_share(gender, school)
-
-school$by_race <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(school), race != "other") %>%
-  compare_share(race, school)
-
-school$by_age <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(school)) %>%
-  compare_share(age_range, school)
-
-school$kids_present <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(school)) %>%
-  compare_share(kids_present, school)
-
-food_sources$school <- school %>%
+food_sources$school <- fsrvys %>%
+  compare_grps(school, hh_income = FALSE) %>%
   map(filter, school == "used_source") %>%
-  combine_dimensions(school)
+  combine_dimensions(c(wks_incl, school))
 ```
 
 ```{r}
-pantry <- list()
-pantry$total <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(pantry)) %>%
-  compare_share(total = "total", pantry)
-
-pantry$by_gender <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(pantry)) %>%
-  compare_share(gender, pantry)
-
-pantry$by_race <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(pantry), race != "other") %>%
-  compare_share(race, pantry)
-
-pantry$by_age <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(pantry)) %>%
-  compare_share(age_range, pantry)
-
-pantry$kids_present <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(pantry)) %>%
-  compare_share(kids_present, pantry)
-
-food_sources$pantry <- pantry %>%
+food_sources$pantry <- fsrvys %>%
+  compare_grps(pantry, hh_income = FALSE) %>%
   map(filter, pantry == "used_source") %>%
-  combine_dimensions(pantry)
+  combine_dimensions(c(wks_incl, pantry))
 ```
 
 ```{r}
-family <- list()
-family$total <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(family)) %>%
-  compare_share(total = "total", family)
-
-family$by_gender <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(family)) %>%
-  compare_share(gender, family)
-
-family$by_race <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(family), race != "other") %>%
-  compare_share(race, family)
-
-family$by_age <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(family)) %>%
-  compare_share(age_range, family)
-
-family$kids_present <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(family)) %>%
-  compare_share(kids_present, family)
-
-food_sources$family <- family %>%
+food_sources$family <- fsrvys %>%
+  compare_grps(family, hh_income = FALSE) %>%
   map(filter, family == "used_source") %>%
-  combine_dimensions(family)
+  combine_dimensions(c(wks_incl, family))
 ```
+
+```{r}
+food_sources <- food_sources %>% map(filter, group != "other")
+```
+
 
 ```{r}
 food_sources$school %>%
@@ -629,85 +519,30 @@ food_barriers <- list()
 ```
 
 ```{r}
-cant_afford <- list()
-cant_afford$total <- fsrvys %>%
-  map(filter, !is.na(current_food), !is.na(cant_afford)) %>%
-  compare_share(total = "total", cant_afford)
-
-cant_afford$by_gender <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(cant_afford)) %>%
-  compare_share(gender, cant_afford)
-
-cant_afford$by_race <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(cant_afford), race != "other") %>%
-  compare_share(race, cant_afford)
-
-cant_afford$by_age <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(cant_afford)) %>%
-  compare_share(age_range, cant_afford)
-
-cant_afford$kids_present <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(cant_afford)) %>%
-  compare_share(kids_present, cant_afford)
-
-food_barriers$cant_afford <- cant_afford %>%
+food_barriers$cant_afford <- fsrvys %>%
+  compare_grps(cant_afford, hh_income = FALSE) %>%
   map(filter, cant_afford == "needed") %>%
-  combine_dimensions(cant_afford)
+  combine_dimensions(c(wks_incl, cant_afford))
 ```
 
 ```{r}
-transportation <- list()
-transportation$total <- fsrvys %>%
-  map(filter, !is.na(current_food), !is.na(transportation)) %>%
-  compare_share(total = "total", transportation)
-
-transportation$by_gender <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(transportation)) %>%
-  compare_share(gender, transportation)
-
-transportation$by_race <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(transportation), race != "other") %>%
-  compare_share(race, transportation)
-
-transportation$by_age <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(transportation)) %>%
-  compare_share(age_range, transportation)
-
-transportation$kids_present <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(transportation)) %>%
-  compare_share(kids_present, transportation)
-
-food_barriers$transportation <- transportation %>%
+food_barriers$transportation <- fsrvys %>%
+  compare_grps(transportation, hh_income = FALSE) %>%
   map(filter, transportation == "needed") %>%
-  combine_dimensions(transportation)
+  combine_dimensions(c(wks_incl, transportation))
 ```
 
 ```{r}
-need_delivered <- list()
-need_delivered$total <- fsrvys %>%
-  map(filter, !is.na(current_food), !is.na(need_delivered)) %>%
-  compare_share(total = "total", need_delivered)
-
-need_delivered$by_gender <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(need_delivered)) %>%
-  compare_share(gender, need_delivered)
-
-need_delivered$by_race <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(need_delivered), race != "other") %>%
-  compare_share(race, need_delivered)
-
-need_delivered$by_age <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(need_delivered)) %>%
-  compare_share(age_range, need_delivered)
-
-need_delivered$kids_present <- fsrvys %>%
-  map(filter, !is.na(freefood), !is.na(need_delivered)) %>%
-  compare_share(kids_present, need_delivered)
-
-food_barriers$need_delivered <- need_delivered %>%
+food_barriers$need_delivered <- fsrvys %>%
+  compare_grps(need_delivered, hh_income = FALSE) %>%
   map(filter, need_delivered == "needed") %>%
-  combine_dimensions(need_delivered)
+  combine_dimensions(c(wks_incl, need_delivered))
 ```
+
+```{r}
+food_barriers <- food_barriers %>% map(filter, group != "other")
+```
+
 
 ```{r}
 food_barriers$cant_afford %>%

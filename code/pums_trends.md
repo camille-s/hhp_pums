@@ -800,3 +800,7 @@ food_barriers$need_delivered %>%
 saveRDS(food_sources, here::here("output_data/hhp_sources_of_food.rds"))
 saveRDS(food_barriers, here::here("output_data/hhp_barriers_to_food.rds"))
 ```
+
+``` r
+write_csv(week_dates, here::here("_utils/pums_week_dates.csv"))
+```

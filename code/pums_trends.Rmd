@@ -90,9 +90,9 @@ all_pums <- list.files(here::here("fetch_data/microdata"), full.names = TRUE) %>
 
 pums_df <- all_pums %>% 
   map(janitor::clean_names) %>%
-  map_dfr(select, state = est_st, week, pweight, birth_year = tbirth_year, gender = egender, rhispanic, rrace, hh_income = income, nkids = thhld_numkid, wrkloss, prior_food = prifoodsuf, current_food = curfoodsuf, delay_care = delay, miss_care = notget, tenure, last_housing = mortlmth, housing_conf = mortconf, internet = intrntavail, starts_with("foodsufr"), freefood, starts_with("wherefree")) %>%
-  mutate_at(vars(-state:-birth_year, -nkids), ~ifelse(. < 0, NA, .)) %>%
-  mutate_at(vars(-state:-birth_year, -nkids, -rhispanic, -rrace, -starts_with("foodsufr"), -starts_with("wherefree")), as.factor) %>%
+  map_dfr(select, scram, state = est_st, week, pweight, birth_year = tbirth_year, gender = egender, rhispanic, rrace, hh_income = income, nkids = thhld_numkid, wrkloss, prior_food = prifoodsuf, current_food = curfoodsuf, delay_care = delay, miss_care = notget, tenure, last_housing = mortlmth, housing_conf = mortconf, internet = intrntavail, starts_with("foodsufr"), freefood, starts_with("wherefree")) %>%
+  mutate_at(vars(-scram:-birth_year, -nkids), ~ifelse(. < 0, NA, .)) %>%
+  mutate_at(vars(-scram:-birth_year, -nkids, -rhispanic, -rrace, -starts_with("foodsufr"), -starts_with("wherefree")), as.factor) %>%
   mutate_at(vars(starts_with("foodsufr"), starts_with("wherefree")), as.logical) %>%
   mutate(race = ifelse(rhispanic == 2, "latino", rrace) %>%
            as.factor() %>%
@@ -122,8 +122,8 @@ summary(pums_df)
 ```
 
 ```{r}
-us_srvy <- as_survey_design(pums_df, weights = pweight)
-ct_srvy <- as_survey_design(pums_df %>% filter(state == "09"), weights = pweight)
+us_srvy <- as_survey_design(pums_df, weights = pweight, strata = week)
+ct_srvy <- as_survey_design(pums_df %>% filter(state == "09"), weights = pweight, strata = week)
 srvys <- lst(us_srvy, ct_srvy) %>% 
   set_names(substr, 1, 2) %>%
   # assume grouped for all weeks
@@ -233,6 +233,31 @@ trends$food_insecurity_change %>%
   scale_fill_manual(values = c(carto_pal(3, "RedOr"), carto_pal(3, "Purp"), carto_pal(3, "Teal"))) +
   theme_minimal()
 ```
+
+```{r}
+food_change <- ct_srvy %>%
+  filter(!is.na(prior_food), !is.na(current_food)) %>%
+  mutate(id = interaction(prior_food, current_food, sep = ",")) %>%
+  group_by(id) %>%
+  summarise(share = survey_mean()) %>%
+  separate(id, into = c("prior_food", "current_food"), sep = ",", remove = FALSE) %>%
+  arrange(desc(prior_food)) %>%
+  mutate_at(vars(prior_food, current_food), as_factor) %>%
+  mutate(id = fct_inorder(id)) %>%
+  pivot_longer(ends_with("food"), names_to = "point", names_ptypes = list(point = factor())) %>%
+  mutate(p = str_extract(id, "^\\w+"))
+
+ggplot(food_change, aes(y = share, x = fct_rev(point), stratum = value, alluvium = id)) +
+  geom_alluvium(aes(fill = id), alpha = 0.85, width = 0.1) +
+  geom_stratum(width = 0.1) +
+  geom_text(stat = "stratum", infer.label = TRUE, size = 2.8) +
+  scale_fill_manual(values = c(carto_pal(3, "RedOr"), carto_pal(3, "Purp"), carto_pal(3, "Teal"))) +
+  scale_x_discrete(expand = expansion(mult = 0)) +
+  coord_flip()  +
+  theme_minimal() +
+  theme(legend.position = "none") 
+```
+
 
 Flipped around: of the people currently food insecure, what was their condition before pandemic? CT data is pretty messy
 
@@ -426,8 +451,8 @@ food sufficiency questions universe: current food not enough / not types wanted
 ```{r}
 # just a little easier to handle food vars separately
 food_df <- pums_df %>%
-  select(state:hh_income, race, age_range, kids_present, current_food, cant_afford = foodsufrsn1, transportation = foodsufrsn2, need_delivered = foodsufrsn4, freefood, school = wherefree1, pantry = wherefree2, home_delivery = wherefree3, church = wherefree4, shelter = wherefree5, comm_program = wherefree6, family = wherefree7) %>%
-  mutate_at(vars(cant_afford:need_delivered), ~case_when(
+  select(state:hh_income, race, age_range, kids_present, current_food, cant_afford = foodsufrsn1, transportation = foodsufrsn2, afraid_to_go_out = foodsufrsn3, need_delivered = foodsufrsn4, stores_didnt_have_food = foodsufrsn5, freefood, school = wherefree1, pantry = wherefree2, home_delivery = wherefree3, church = wherefree4, shelter = wherefree5, comm_program = wherefree6, family = wherefree7) %>%
+  mutate_at(vars(cant_afford:stores_didnt_have_food), ~case_when(
     current_food == "secure" ~ NA_character_,
     is.na(.) ~ "didnt_need",
     TRUE ~ "needed"
@@ -453,35 +478,22 @@ fsrvys <- list(
 of adults getting free food in past 7 days
 
 ```{r}
-food_sources <- list()
+food_sources <- food_df %>%
+  select(school:family) %>%
+  names() %>%
+  set_names() %>%
+  map(function(col_name) {
+    col <- sym(col_name)
+    fsrvys %>%
+      compare_grps({{ col }}, hh_income = FALSE) %>%
+      map(filter, {{ col }} == "used_source") %>%
+      combine_dimensions(c(wks_incl, {{ col }}))
+  }) %>%
+  map(filter, group != "other")
 ```
 
 
 
-```{r}
-food_sources$school <- fsrvys %>%
-  compare_grps(school, hh_income = FALSE) %>%
-  map(filter, school == "used_source") %>%
-  combine_dimensions(c(wks_incl, school))
-```
-
-```{r}
-food_sources$pantry <- fsrvys %>%
-  compare_grps(pantry, hh_income = FALSE) %>%
-  map(filter, pantry == "used_source") %>%
-  combine_dimensions(c(wks_incl, pantry))
-```
-
-```{r}
-food_sources$family <- fsrvys %>%
-  compare_grps(family, hh_income = FALSE) %>%
-  map(filter, family == "used_source") %>%
-  combine_dimensions(c(wks_incl, family))
-```
-
-```{r}
-food_sources <- food_sources %>% map(filter, group != "other")
-```
 
 
 ```{r}
@@ -510,38 +522,43 @@ food_sources$pantry %>%
 
 Key takeaway: people living with kids rely heavily on schools for food, whereas people not living with kids & seniors rely heavily on food pantries & food banks.
 
+```{r}
+food_sources %>%
+  map_dfr(pivot_longer, -c(name, wks_incl, share:group), names_to = "source") %>%
+  filter(name == "CT", dimension == "total") %>%
+  mutate(source = as_factor(source) %>% fct_reorder(share, .fun = max)) %>%
+  ggplot(aes(x = source, y = share)) +
+  geom_col(width = 0.8) +
+  geom_text(aes(label = scales::percent(share, accuracy = 1)), color = "white", hjust = 1, nudge_y = -2e-3, size = 2.5) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)), breaks = NULL) +
+  coord_flip() +
+  theme(panel.grid = element_blank(),
+        axis.ticks = element_blank()) +
+  theme_minimal() +
+  labs(title = "source of free food",
+       x = NULL, y = NULL)
+```
+
+
 ## barriers to food access
 
 of adults experiencing shortage of food / desired types of food in past 7 days
 
 ```{r}
-food_barriers <- list()
+food_barriers <- food_df %>%
+  select(cant_afford:stores_didnt_have_food) %>%
+  names() %>%
+  set_names() %>%
+  map(function(col_name) {
+    col <- sym(col_name)
+    fsrvys %>%
+      compare_grps({{ col }}, hh_income = FALSE) %>%
+      map(filter, {{ col }} == "needed") %>%
+      combine_dimensions(c(wks_incl, {{ col }}))
+  }) %>%
+  map(filter, group != "other")
 ```
 
-```{r}
-food_barriers$cant_afford <- fsrvys %>%
-  compare_grps(cant_afford, hh_income = FALSE) %>%
-  map(filter, cant_afford == "needed") %>%
-  combine_dimensions(c(wks_incl, cant_afford))
-```
-
-```{r}
-food_barriers$transportation <- fsrvys %>%
-  compare_grps(transportation, hh_income = FALSE) %>%
-  map(filter, transportation == "needed") %>%
-  combine_dimensions(c(wks_incl, transportation))
-```
-
-```{r}
-food_barriers$need_delivered <- fsrvys %>%
-  compare_grps(need_delivered, hh_income = FALSE) %>%
-  map(filter, need_delivered == "needed") %>%
-  combine_dimensions(c(wks_incl, need_delivered))
-```
-
-```{r}
-food_barriers <- food_barriers %>% map(filter, group != "other")
-```
 
 
 ```{r}
@@ -577,4 +594,30 @@ saveRDS(food_barriers, here::here("output_data/hhp_barriers_to_food.rds"))
 ```{r}
 write_csv(week_dates, here::here("_utils/pums_week_dates.csv"))
 ```
+
+
+Not ready yet: curious about how many people have become food insecure / experienced insecurity at some point
+
+```{r message=TRUE, warning=TRUE}
+rep_ids <- all_pums %>%
+  map_dfr(janitor::clean_names, .id = "wk") %>%
+  filter(est_st == "09", !is.na(curfoodsuf)) %>%
+  count(scram) %>%
+  arrange(-n) %>%
+  filter(n > 1)
+
+ct_srvy %>%
+  filter(!is.na(current_food)) %>%
+  # as_tibble() %>%
+  group_by(scram) %>%
+  mutate(insecure = current_food == "insecure",
+         insecure_so_far = cumsum(insecure) > 0) %>%
+  ungroup() %>%
+  select(scram, week, current_food, insecure, insecure_so_far) %>%
+  # arrange(scram)
+  group_by(week) %>%
+  summarise(share_current = survey_mean(insecure, na.rm = TRUE),
+            share_ever = survey_mean(insecure_so_far, na.rm = TRUE, vartype = "ci", level = 0.9))
+```
+
 

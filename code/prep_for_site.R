@@ -19,9 +19,11 @@ collapse_dates <- function(df) {
 list(
   food_insecurity = hhp_group$food_insecurity,
   housing_insecurity = hhp_group$housing_insecurity,
-  rent_insecurity = hhp_group$renter_insecurity
+  rent_insecurity = hhp_group$renter_insecurity,
+  loss_of_work = hhp_group$work_loss
 ) %>%
-  map(filter, name == "CT" & dimension %in% c("total", "race", "income", "kids_present")) %>%
+  map(filter, name == "CT" & dimension %in% c("total", "race", "age_range", "income", "kids_present")) %>%
   map(collapse_dates) %>%
   map(select, -name, -share_se) %>%
+  map(arrange, dimension, group) %>%
   cwi::batch_csv_dump(path = "to_site", base_name = "hhp_group")

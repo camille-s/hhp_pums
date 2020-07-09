@@ -54,6 +54,8 @@ combine_dimensions <- function(dfs, ...) {
     filter(!is.na(group)) %>%
     mutate(group = as_factor(ifelse(group == "total", as.character(name), as.character(group))))
 }
+
+theme_set(theme_minimal())
 ```
 
 ``` r
@@ -856,13 +858,14 @@ food_sources %>%
   filter(name == "CT", dimension == "total") %>%
   mutate(source = as_factor(source) %>% fct_reorder(share, .fun = max)) %>%
   ggplot(aes(x = source, y = share)) +
-  geom_col(width = 0.8) +
-  geom_text(aes(label = scales::percent(share, accuracy = 1)), color = "white", hjust = 1, nudge_y = -2e-3, size = 2.5) +
+  geom_col(width = 0.8, fill = "#008b60") +
+  geom_text(aes(label = scales::percent(share, accuracy = 1)), color = "white", hjust = 1, nudge_y = -2e-3, size = 2.5, fontface = "bold") +
   scale_y_continuous(expand = expansion(mult = c(0, 0.05)), breaks = NULL) +
   coord_flip() +
-  theme(panel.grid = element_blank(),
-        axis.ticks = element_blank()) +
   theme_minimal() +
+  theme(panel.grid = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title.position = "plot") +
   labs(title = "source of free food",
        x = NULL, y = NULL)
 ```
@@ -918,6 +921,62 @@ food_barriers$need_delivered %>%
 ```
 
 ![](pums_trends_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
+
+## resources x health
+
+Interested in how anxiety differs by food insecurity, housing
+insecurity, etc
+
+``` r
+resource_x_health <- list()
+```
+
+``` r
+resource_x_health$anxiety_x_food <- srvys %>%
+  map(filter, !is.na(current_food), !is.na(anxious)) %>%
+  compare_share(current_food, anxious) %>%
+  filter(anxious == "most_all_days", name == "CT")
+
+resource_x_health$anxiety_x_housing <- srvys %>%
+  map(filter, !is.na(housing_conf), !is.na(anxious)) %>%
+  compare_share(housing_conf, anxious) %>%
+  filter(anxious == "most_all_days", name == "CT")
+
+resource_x_health$anxiety_x_delay_care <- srvys %>%
+  map(filter, !is.na(delay_care), !is.na(anxious)) %>%
+  compare_share(delay_care, anxious) %>%
+  filter(anxious == "most_all_days", name == "CT")
+
+resource_x_health$anxiety_x_tenure <- srvys %>%
+  map(filter, !is.na(tenure), !is.na(anxious)) %>%
+  compare_share(tenure, anxious) %>%
+  filter(anxious == "most_all_days", name == "CT", tenure != "other")
+
+resource_x_health %>%
+  map_dfr(pivot_longer, c(-name, -wks_incl, -anxious, -starts_with("share")), names_to = "measure", values_to = "group") %>%
+  mutate_at(vars(measure, group), fct_relabel, camiller::clean_titles) %>%
+  mutate(measure = fct_recode(measure, "Food insecure" = "Current food", "Confidence in next housing payment" = "Housing conf")) %>%
+  ggplot(aes(x = group, y = share)) +
+  geom_col(width = 0.8, fill = "#008b60") +
+  geom_text(aes(label = scales::percent(share, accuracy = 1)), size = 2.8, hjust = 1, nudge_y = -8e-3, fontface = "bold", color = "white") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)), breaks = NULL) +
+  facet_grid(rows = vars(measure), scales = "free", space = "free", switch = "y",
+             labeller = labeller(measure = label_wrap_gen(20))) +
+  coord_flip() +
+  labs(x = NULL, y = NULL,
+       title = "Anxiety rate vs access to resources") +
+  theme(strip.text.y = element_text(angle = 0, face = "bold"),
+        strip.placement = "outside",
+        panel.grid = element_blank(),
+        plot.title.position = "plot",
+        panel.spacing = unit(0.2, "in"))
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
+
+Not super surprising: people are more anxious who have also been food
+insecure, delayed medical care, worried about next housing payment, and
+who rent. Definitely more we could dig into here.
 
 ``` r
 saveRDS(food_sources, here::here("output_data/hhp_sources_of_food.rds"))

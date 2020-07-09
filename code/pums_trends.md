@@ -77,9 +77,9 @@ all_pums <- list.files(here::here("fetch_data/microdata"), full.names = TRUE) %>
 
 pums_df <- all_pums %>% 
   map(janitor::clean_names) %>%
-  map_dfr(select, state = est_st, week, pweight, birth_year = tbirth_year, gender = egender, rhispanic, rrace, hh_income = income, nkids = thhld_numkid, wrkloss, prior_food = prifoodsuf, current_food = curfoodsuf, delay_care = delay, miss_care = notget, tenure, last_housing = mortlmth, housing_conf = mortconf, internet = intrntavail, starts_with("foodsufr"), freefood, starts_with("wherefree")) %>%
-  mutate_at(vars(-state:-birth_year, -nkids), ~ifelse(. < 0, NA, .)) %>%
-  mutate_at(vars(-state:-birth_year, -nkids, -rhispanic, -rrace, -starts_with("foodsufr"), -starts_with("wherefree")), as.factor) %>%
+  map_dfr(select, scram, state = est_st, week, pweight, birth_year = tbirth_year, gender = egender, rhispanic, rrace, hh_income = income, nkids = thhld_numkid, wrkloss, prior_food = prifoodsuf, current_food = curfoodsuf, delay_care = delay, miss_care = notget, anxious, tenure, last_housing = mortlmth, housing_conf = mortconf, internet = intrntavail, starts_with("foodsufr"), freefood, starts_with("wherefree")) %>%
+  mutate_at(vars(-scram:-birth_year, -nkids), ~ifelse(. < 0, NA, .)) %>%
+  mutate_at(vars(-scram:-birth_year, -nkids, -rhispanic, -rrace, -starts_with("foodsufr"), -starts_with("wherefree")), as.factor) %>%
   mutate_at(vars(starts_with("foodsufr"), starts_with("wherefree")), as.logical) %>%
   mutate(race = ifelse(rhispanic == 2, "latino", rrace) %>%
            as.factor() %>%
@@ -89,6 +89,7 @@ pums_df <- all_pums %>%
          wrkloss = fct_recode(wrkloss, loss = "1", no_loss = "2"),
          delay_care = fct_recode(delay_care, delayed = "1", no_delay = "2"),
          miss_care = fct_recode(miss_care, missed = "1", no_miss = "2"),
+         anxious = fct_collapse(anxious, not_anxious = c("1", "2"), most_all_days = c("3", "4")),
          tenure = fct_recode(tenure, own_in_full = "1", mortgage = "2", rent = "3", other = "4"),
          last_housing = fct_recode(last_housing, on_time = "1", late = "2", deferred = "3"),
          housing_conf = fct_collapse(housing_conf, not_confident = c("1", "2"), confident = c("3", "4"), deferred = "5"),
@@ -108,90 +109,90 @@ pums_df <- all_pums %>%
 summary(pums_df)
 ```
 
-    ##     state             wks_incl         week         start_date        
-    ##  Length:612425      Length:612425      1: 74413   Min.   :2020-04-23  
-    ##  Class :character   Class :character   2: 41996   1st Qu.:2020-05-14  
-    ##  Mode  :character   Mode  :character   3:132961   Median :2020-05-21  
-    ##                                        4:101215   Mean   :2020-05-20  
-    ##                                        5:105066   3rd Qu.:2020-06-04  
-    ##                                        6: 83302   Max.   :2020-06-11  
-    ##                                        7: 73472                       
-    ##     end_date             pweight            gender      
-    ##  Min.   :2020-05-05   Min.   :     2.0   male  :249130  
-    ##  1st Qu.:2020-05-19   1st Qu.:   304.6   female:363295  
-    ##  Median :2020-05-26   Median :   855.6                  
-    ##  Mean   :2020-05-26   Mean   :  2848.0                  
-    ##  3rd Qu.:2020-06-09   3rd Qu.:  2446.6                  
-    ##  Max.   :2020-06-16   Max.   :447765.7                  
-    ##                                                         
+    ##     state             wks_incl              week          start_date        
+    ##  Length:720487      Length:720487      3      :132961   Min.   :2020-04-23  
+    ##  Class :character   Class :character   8      :108062   1st Qu.:2020-05-14  
+    ##  Mode  :character   Mode  :character   5      :105066   Median :2020-05-28  
+    ##                                        4      :101215   Mean   :2020-05-24  
+    ##                                        6      : 83302   3rd Qu.:2020-06-11  
+    ##                                        1      : 74413   Max.   :2020-06-18  
+    ##                                        (Other):115468                       
+    ##     end_date             scram              pweight            gender      
+    ##  Min.   :2020-05-05   Length:720487      Min.   :     2.0   male  :292120  
+    ##  1st Qu.:2020-05-19   Class :character   1st Qu.:   290.4   female:428367  
+    ##  Median :2020-06-02   Mode  :character   Median :   803.2                  
+    ##  Mean   :2020-05-30                      Mean   :  2766.7                  
+    ##  3rd Qu.:2020-06-16                      3rd Qu.:  2337.1                  
+    ##  Max.   :2020-06-23                      Max.   :447765.7                  
+    ##                                                                            
     ##            hh_income          nkids           wrkloss      
-    ##  under35k       :102892   Min.   :0.0000   loss   :237123  
-    ##  income35k_75k  :151244   1st Qu.:0.0000   no_loss:371833  
-    ##  income75k_150k :174614   Median :0.0000   NA's   :  3469  
-    ##  income150k_plus: 99856   Mean   :0.6616                   
-    ##  NA's           : 83819   3rd Qu.:1.0000                   
+    ##  under35k       :122083   Min.   :0.0000   loss   :279946  
+    ##  income35k_75k  :178624   1st Qu.:0.0000   no_loss:436581  
+    ##  income75k_150k :205188   Median :0.0000   NA's   :  3960  
+    ##  income150k_plus:117188   Mean   :0.6651                   
+    ##  NA's           : 97404   3rd Qu.:1.0000                   
     ##                           Max.   :5.0000                   
     ##                                                            
     ##             prior_food               current_food       delay_care    
-    ##  secure          :467088   secure          :403831   delayed :240800  
-    ##  not_kinds_wanted:103053   not_kinds_wanted:160313   no_delay:306839  
-    ##  insecure        : 30608   insecure        : 36351   NA's    : 64786  
-    ##  NA's            : 11676   NA's            : 11930                    
+    ##  secure          :549987   secure          :475126   delayed :284637  
+    ##  not_kinds_wanted:121172   not_kinds_wanted:188487   no_delay:361075  
+    ##  insecure        : 35726   insecure        : 42885   NA's    : 74775  
+    ##  NA's            : 13602   NA's            : 13989                    
     ##                                                                       
     ##                                                                       
     ##                                                                       
-    ##    miss_care              tenure         last_housing           housing_conf   
-    ##  missed :186754   own_in_full:131361   on_time :363627   not_confident: 52949  
-    ##  no_miss:361609   mortgage   :271551   late    : 30214   confident    :345213  
-    ##  NA's   : 64062   rent       :136256   deferred: 12246   deferred     :  8249  
-    ##                   other      :  6963   NA's    :206338   NA's         :206014  
-    ##                   NA's       : 66294                                           
+    ##    miss_care               anxious               tenure         last_housing   
+    ##  missed :220190   not_anxious  :472441   own_in_full:153653   on_time :429154  
+    ##  no_miss:426388   most_all_days:181222   mortgage   :320995   late    : 36132  
+    ##  NA's   : 73909   NA's         : 66824   rent       :161114   deferred: 14740  
+    ##                                          other      :  8194   NA's    :240461  
+    ##                                          NA's       : 76531                    
     ##                                                                                
     ##                                                                                
-    ##            internet      foodsufrsn1    foodsufrsn2    foodsufrsn3   
-    ##  always_usually:136001   Mode:logical   Mode:logical   Mode:logical  
-    ##  not_reliable  :  9879   TRUE:70190     TRUE:21017     TRUE:51956    
-    ##  NA's          :466545   NA's:542235    NA's:591408    NA's:560469   
-    ##                                                                      
-    ##                                                                      
-    ##                                                                      
-    ##                                                                      
-    ##  foodsufrsn4    foodsufrsn5             freefood      wherefree1    
-    ##  Mode:logical   Mode:logical   received_food: 36262   Mode:logical  
-    ##  TRUE:13635     TRUE:104613    no_free_food :562252   TRUE:16796    
-    ##  NA's:598790    NA's:507812    NA's         : 13911   NA's:595629   
+    ##         housing_conf              internet      foodsufrsn1    foodsufrsn2   
+    ##  not_confident: 62523   always_usually:160688   Mode:logical   Mode:logical  
+    ##  confident    :408396   not_reliable  : 11977   TRUE:85301     TRUE:25366    
+    ##  deferred     :  9493   NA's          :547822   NA's:635186    NA's:695121   
+    ##  NA's         :240075                                                        
+    ##                                                                              
+    ##                                                                              
+    ##                                                                              
+    ##  foodsufrsn3    foodsufrsn4    foodsufrsn5             freefood     
+    ##  Mode:logical   Mode:logical   Mode:logical   received_food: 43391  
+    ##  TRUE:61630     TRUE:15858     TRUE:119566    no_free_food :660812  
+    ##  NA's:658857    NA's:704629    NA's:600921    NA's         : 16284  
     ##                                                                     
     ##                                                                     
     ##                                                                     
     ##                                                                     
-    ##  wherefree2     wherefree3     wherefree4     wherefree5     wherefree6    
+    ##  wherefree1     wherefree2     wherefree3     wherefree4     wherefree5    
     ##  Mode:logical   Mode:logical   Mode:logical   Mode:logical   Mode:logical  
-    ##  TRUE:8206      TRUE:1464      TRUE:3972      TRUE:361       TRUE:7415     
-    ##  NA's:604219    NA's:610961    NA's:608453    NA's:612064    NA's:605010   
+    ##  TRUE:19829     TRUE:10233     TRUE:1776      TRUE:5125      TRUE:475      
+    ##  NA's:700658    NA's:710254    NA's:718711    NA's:715362    NA's:720012   
     ##                                                                            
     ##                                                                            
     ##                                                                            
     ##                                                                            
-    ##  wherefree7         race             age               kids_present   
-    ##  Mode:logical   white :467612   Min.   :18.00   kids_in_house:215782  
-    ##  TRUE:7994      black : 45330   1st Qu.:39.00   no_kids      :396643  
-    ##  NA's:604431    latino: 51206   Median :52.00                         
-    ##                 asian : 27039   Mean   :51.68                         
-    ##                 other : 21238   3rd Qu.:64.00                         
-    ##                                 Max.   :88.00                         
-    ##                                                                       
-    ##       age_range     
-    ##  ages18_34 : 99257  
-    ##  ages35_64 :360694  
-    ##  ages65plus:152474  
-    ##                     
-    ##                     
-    ##                     
+    ##  wherefree6     wherefree7         race             age       
+    ##  Mode:logical   Mode:logical   white :548421   Min.   :18.00  
+    ##  TRUE:8952      TRUE:9934      black : 53645   1st Qu.:39.00  
+    ##  NA's:711535    NA's:710553    latino: 61338   Median :51.00  
+    ##                                asian : 31805   Mean   :51.59  
+    ##                                other : 25278   3rd Qu.:64.00  
+    ##                                                Max.   :88.00  
+    ##                                                               
+    ##         kids_present         age_range     
+    ##  kids_in_house:255153   ages18_34 :117825  
+    ##  no_kids      :465334   ages35_64 :424647  
+    ##                         ages65plus:178015  
+    ##                                            
+    ##                                            
+    ##                                            
     ## 
 
 ``` r
-us_srvy <- as_survey_design(pums_df, weights = pweight)
-ct_srvy <- as_survey_design(pums_df %>% filter(state == "09"), weights = pweight)
+us_srvy <- as_survey_design(pums_df, weights = pweight, strata = week)
+ct_srvy <- as_survey_design(pums_df %>% filter(state == "09"), weights = pweight, strata = week)
 srvys <- lst(us_srvy, ct_srvy) %>% 
   set_names(substr, 1, 2) %>%
   # assume grouped for all weeks
@@ -230,23 +231,25 @@ trends$work_loss <- srvys %>%
 trends$work_loss
 ```
 
-    ## # A tibble: 14 x 6
+    ## # A tibble: 16 x 6
     ##    name  wks_incl week  wrkloss share share_se
     ##    <fct> <chr>    <fct> <fct>   <dbl>    <dbl>
-    ##  1 US    1_7      1     loss     0.47   0.0041
-    ##  2 US    1_7      2     loss     0.47   0.006 
-    ##  3 US    1_7      3     loss     0.48   0.0054
-    ##  4 US    1_7      4     loss     0.48   0.0047
-    ##  5 US    1_7      5     loss     0.48   0.0041
-    ##  6 US    1_7      6     loss     0.48   0.0046
-    ##  7 US    1_7      7     loss     0.48   0.0055
-    ##  8 CT    1_7      1     loss     0.47   0.025 
-    ##  9 CT    1_7      2     loss     0.46   0.039 
-    ## 10 CT    1_7      3     loss     0.48   0.031 
-    ## 11 CT    1_7      4     loss     0.47   0.026 
-    ## 12 CT    1_7      5     loss     0.48   0.022 
-    ## 13 CT    1_7      6     loss     0.46   0.027 
-    ## 14 CT    1_7      7     loss     0.47   0.032
+    ##  1 US    1_8      1     loss     0.47   0.0041
+    ##  2 US    1_8      2     loss     0.47   0.006 
+    ##  3 US    1_8      3     loss     0.48   0.0054
+    ##  4 US    1_8      4     loss     0.48   0.0047
+    ##  5 US    1_8      5     loss     0.48   0.0041
+    ##  6 US    1_8      6     loss     0.48   0.0046
+    ##  7 US    1_8      7     loss     0.48   0.0055
+    ##  8 US    1_8      8     loss     0.48   0.0049
+    ##  9 CT    1_8      1     loss     0.47   0.025 
+    ## 10 CT    1_8      2     loss     0.46   0.039 
+    ## 11 CT    1_8      3     loss     0.48   0.031 
+    ## 12 CT    1_8      4     loss     0.47   0.026 
+    ## 13 CT    1_8      5     loss     0.48   0.022 
+    ## 14 CT    1_8      6     loss     0.46   0.027 
+    ## 15 CT    1_8      7     loss     0.47   0.032 
+    ## 16 CT    1_8      8     loss     0.45   0.028
 
 ## food insecurity (current)
 
@@ -257,11 +260,33 @@ trends$food_insecurity <- srvys %>%
   map(filter, !is.na(current_food)) %>%
   compare_share(week, current_food) %>%
   filter(current_food == "insecure")
+
+trends$food_insecurity
 ```
+
+    ## # A tibble: 16 x 6
+    ##    name  wks_incl week  current_food share share_se
+    ##    <fct> <chr>    <fct> <fct>        <dbl>    <dbl>
+    ##  1 US    1_8      1     insecure     0.098  0.00290
+    ##  2 US    1_8      2     insecure     0.11   0.0042 
+    ##  3 US    1_8      3     insecure     0.11   0.0038 
+    ##  4 US    1_8      4     insecure     0.099  0.0033 
+    ##  5 US    1_8      5     insecure     0.11   0.0031 
+    ##  6 US    1_8      6     insecure     0.1    0.0033 
+    ##  7 US    1_8      7     insecure     0.1    0.0038 
+    ##  8 US    1_8      8     insecure     0.097  0.0031 
+    ##  9 CT    1_8      1     insecure     0.09   0.017  
+    ## 10 CT    1_8      2     insecure     0.087  0.022  
+    ## 11 CT    1_8      3     insecure     0.12   0.028  
+    ## 12 CT    1_8      4     insecure     0.091  0.021  
+    ## 13 CT    1_8      5     insecure     0.097  0.017  
+    ## 14 CT    1_8      6     insecure     0.1    0.023  
+    ## 15 CT    1_8      7     insecure     0.1    0.023  
+    ## 16 CT    1_8      8     insecure     0.1    0.017
 
 ## delayed medical care
 
-US is steady, but CT trending up
+US is steady, but CT was trending up
 
 ``` r
 trends$delayed_med_care <- srvys %>%
@@ -275,7 +300,7 @@ trends$delayed_med_care %>%
   geom_line(size = 0.8) +
   geom_point() +
   scale_color_carto_d(palette = "Vivid") +
-  scale_x_continuous(breaks = 1:6) +
+  # scale_x_continuous(breaks = 1:6) +
   labs(title = "delayed medical care")
 ```
 
@@ -283,25 +308,102 @@ trends$delayed_med_care %>%
 
 ## missed care
 
-not changing
+~~not changing~~ or fluctuating
 
 ``` r
 trends$missed_med_care <- srvys %>%
   map(filter, !is.na(miss_care)) %>%
   compare_share(week, miss_care) %>%
   filter(miss_care == "missed")
+
+trends$missed_med_care
 ```
+
+    ## # A tibble: 16 x 6
+    ##    name  wks_incl week  miss_care share share_se
+    ##    <fct> <chr>    <fct> <fct>     <dbl>    <dbl>
+    ##  1 US    1_8      1     missed    0.32    0.0039
+    ##  2 US    1_8      2     missed    0.34    0.0057
+    ##  3 US    1_8      3     missed    0.33    0.0053
+    ##  4 US    1_8      4     missed    0.33    0.0047
+    ##  5 US    1_8      5     missed    0.33    0.004 
+    ##  6 US    1_8      6     missed    0.32    0.0045
+    ##  7 US    1_8      7     missed    0.32    0.005 
+    ##  8 US    1_8      8     missed    0.33    0.0049
+    ##  9 CT    1_8      1     missed    0.31    0.024 
+    ## 10 CT    1_8      2     missed    0.35    0.038 
+    ## 11 CT    1_8      3     missed    0.37    0.034 
+    ## 12 CT    1_8      4     missed    0.34    0.026 
+    ## 13 CT    1_8      5     missed    0.34    0.022 
+    ## 14 CT    1_8      6     missed    0.34    0.028 
+    ## 15 CT    1_8      7     missed    0.37    0.033 
+    ## 16 CT    1_8      8     missed    0.290   0.026
+
+## anxiety
+
+steady/fluctuating
+
+``` r
+trends$anxiety <- srvys %>%
+  map(filter, !is.na(anxious)) %>%
+  compare_share(week, anxious) %>%
+  filter(anxious == "most_all_days")
+
+trends$anxiety
+```
+
+    ## # A tibble: 16 x 6
+    ##    name  wks_incl week  anxious       share share_se
+    ##    <fct> <chr>    <fct> <fct>         <dbl>    <dbl>
+    ##  1 US    1_8      1     most_all_days 0.3     0.0039
+    ##  2 US    1_8      2     most_all_days 0.290   0.0057
+    ##  3 US    1_8      3     most_all_days 0.27    0.005 
+    ##  4 US    1_8      4     most_all_days 0.28    0.0047
+    ##  5 US    1_8      5     most_all_days 0.290   0.004 
+    ##  6 US    1_8      6     most_all_days 0.3     0.0046
+    ##  7 US    1_8      7     most_all_days 0.3     0.005 
+    ##  8 US    1_8      8     most_all_days 0.3     0.0045
+    ##  9 CT    1_8      1     most_all_days 0.31    0.025 
+    ## 10 CT    1_8      2     most_all_days 0.3     0.037 
+    ## 11 CT    1_8      3     most_all_days 0.28    0.033 
+    ## 12 CT    1_8      4     most_all_days 0.25    0.026 
+    ## 13 CT    1_8      5     most_all_days 0.27    0.02  
+    ## 14 CT    1_8      6     most_all_days 0.28    0.027 
+    ## 15 CT    1_8      7     most_all_days 0.34    0.031 
+    ## 16 CT    1_8      8     most_all_days 0.34    0.03
 
 ## housing insecure—can’t pay next month
 
-not changing
+~~not changing~~ fluctuating
 
 ``` r
 trends$housing_insecurity <- srvys %>%
   map(filter, !is.na(housing_conf)) %>%
   compare_share(week, housing_conf) %>%
   filter(housing_conf == "not_confident")
+
+trends$housing_insecurity
 ```
+
+    ## # A tibble: 16 x 6
+    ##    name  wks_incl week  housing_conf  share share_se
+    ##    <fct> <chr>    <fct> <fct>         <dbl>    <dbl>
+    ##  1 US    1_8      1     not_confident  0.21  0.0047 
+    ##  2 US    1_8      2     not_confident  0.22  0.0068 
+    ##  3 US    1_8      3     not_confident  0.22  0.0062 
+    ##  4 US    1_8      4     not_confident  0.21  0.0053 
+    ##  5 US    1_8      5     not_confident  0.21  0.0047 
+    ##  6 US    1_8      6     not_confident  0.19  0.00480
+    ##  7 US    1_8      7     not_confident  0.2   0.00580
+    ##  8 US    1_8      8     not_confident  0.21  0.0054 
+    ##  9 CT    1_8      1     not_confident  0.17  0.02   
+    ## 10 CT    1_8      2     not_confident  0.19  0.03   
+    ## 11 CT    1_8      3     not_confident  0.24  0.032  
+    ## 12 CT    1_8      4     not_confident  0.18  0.031  
+    ## 13 CT    1_8      5     not_confident  0.15  0.021  
+    ## 14 CT    1_8      6     not_confident  0.14  0.03   
+    ## 15 CT    1_8      7     not_confident  0.15  0.023  
+    ## 16 CT    1_8      8     not_confident  0.21  0.028
 
 ## food insecurity: current vs prior
 
@@ -323,46 +425,55 @@ trends$food_insecurity_change
     ## # A tibble: 18 x 6
     ##    name  wks_incl prior_food       current_food     share share_se
     ##    <fct> <chr>    <fct>            <fct>            <dbl>    <dbl>
-    ##  1 US    1_7      secure           secure           0.79   0.0018 
-    ##  2 US    1_7      secure           not_kinds_wanted 0.18   0.0017 
-    ##  3 US    1_7      secure           insecure         0.026  0.00079
-    ##  4 US    1_7      not_kinds_wanted secure           0.12   0.0028 
-    ##  5 US    1_7      not_kinds_wanted not_kinds_wanted 0.81   0.0035 
-    ##  6 US    1_7      not_kinds_wanted insecure         0.073  0.0023 
-    ##  7 US    1_7      insecure         secure           0.042  0.00290
-    ##  8 US    1_7      insecure         not_kinds_wanted 0.18   0.0057 
-    ##  9 US    1_7      insecure         insecure         0.78   0.0062 
-    ## 10 CT    1_7      secure           secure           0.78   0.011  
-    ## 11 CT    1_7      secure           not_kinds_wanted 0.2    0.01   
-    ## 12 CT    1_7      secure           insecure         0.021  0.0037 
-    ## 13 CT    1_7      not_kinds_wanted secure           0.088  0.01   
-    ## 14 CT    1_7      not_kinds_wanted not_kinds_wanted 0.81   0.024  
-    ## 15 CT    1_7      not_kinds_wanted insecure         0.11   0.024  
-    ## 16 CT    1_7      insecure         secure           0.045  0.018  
-    ## 17 CT    1_7      insecure         not_kinds_wanted 0.16   0.03   
-    ## 18 CT    1_7      insecure         insecure         0.79   0.034
-
-Note this just shows shares within each prior group, not shares of the
-total population
+    ##  1 US    1_8      secure           secure           0.79   0.0017 
+    ##  2 US    1_8      secure           not_kinds_wanted 0.18   0.0016 
+    ##  3 US    1_8      secure           insecure         0.027  0.00076
+    ##  4 US    1_8      not_kinds_wanted secure           0.12   0.0026 
+    ##  5 US    1_8      not_kinds_wanted not_kinds_wanted 0.81   0.0032 
+    ##  6 US    1_8      not_kinds_wanted insecure         0.072  0.0021 
+    ##  7 US    1_8      insecure         secure           0.042  0.0027 
+    ##  8 US    1_8      insecure         not_kinds_wanted 0.18   0.0053 
+    ##  9 US    1_8      insecure         insecure         0.78   0.0057 
+    ## 10 CT    1_8      secure           secure           0.78   0.00960
+    ## 11 CT    1_8      secure           not_kinds_wanted 0.19   0.0092 
+    ## 12 CT    1_8      secure           insecure         0.02   0.0033 
+    ## 13 CT    1_8      not_kinds_wanted secure           0.11   0.014  
+    ## 14 CT    1_8      not_kinds_wanted not_kinds_wanted 0.79   0.023  
+    ## 15 CT    1_8      not_kinds_wanted insecure         0.1    0.021  
+    ## 16 CT    1_8      insecure         secure           0.041  0.016  
+    ## 17 CT    1_8      insecure         not_kinds_wanted 0.18   0.032  
+    ## 18 CT    1_8      insecure         insecure         0.78   0.034
 
 ``` r
-trends$food_insecurity_change %>%
-  filter(name == "CT") %>%
-  select(name, prior_food, current_food, share) %>%
-  mutate(id = paste(prior_food, current_food, sep = ",")) %>%
+food_change <- ct_srvy %>%
+  filter(!is.na(prior_food), !is.na(current_food)) %>%
+  mutate(id = interaction(prior_food, current_food, sep = ",")) %>%
+  group_by(id) %>%
+  summarise(share = survey_mean()) %>%
+  separate(id, into = c("prior_food", "current_food"), sep = ",", remove = FALSE) %>%
+  arrange(desc(prior_food)) %>%
+  mutate_at(vars(prior_food, current_food), as_factor) %>%
+  mutate(id = fct_inorder(id)) %>%
   pivot_longer(ends_with("food"), names_to = "point", names_ptypes = list(point = factor())) %>%
-  ggplot(aes(y = share, x = point, stratum = value, alluvium = id)) +
-  geom_alluvium(aes(fill = id), alpha = 0.9) +
-  geom_stratum(width = 1/8) +
-  geom_text(stat = "stratum", infer.label = TRUE, angle = 90, size = 2.8) +
+  mutate(p = str_extract(id, "^\\w+"))
+
+ggplot(food_change, aes(y = share, x = fct_rev(point), stratum = value, alluvium = id)) +
+  geom_alluvium(aes(fill = id), alpha = 0.85, width = 0.1) +
+  geom_stratum(width = 0.1) +
+  geom_text(stat = "stratum", infer.label = TRUE, size = 2.8) +
   scale_fill_manual(values = c(carto_pal(3, "RedOr"), carto_pal(3, "Purp"), carto_pal(3, "Teal"))) +
-  theme_minimal()
+  scale_x_discrete(expand = expansion(mult = 0)) +
+  coord_flip()  +
+  theme_minimal() +
+  theme(legend.position = "none") 
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 Flipped around: of the people currently food insecure, what was their
-condition before pandemic? CT data is pretty messy
+condition before pandemic? CT data is pretty messy. Could be a trend in
+past couple weeks of people who were secure before covid now becoming
+insecure recently, or could be fluke
 
 ``` r
 trends$became_food_insecure <- srvys %>%
@@ -373,10 +484,12 @@ trends$became_food_insecure <- srvys %>%
 trends$became_food_insecure %>%
   filter(name == "US") %>%
   ggplot(aes(x = as.numeric(week), y = share, fill = prior_food, color = prior_food)) +
-  geom_line()
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  scale_color_manual(values = carto_pal(7, "Vivid"))
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
 # by group
 
@@ -426,7 +539,7 @@ by_group$food_insecurity_change %>%
   labs(title = "previous vs current food insecurity")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 ## received free food
 
@@ -453,6 +566,15 @@ by_group$missed_med_care <- srvys %>%
   compare_grps(miss_care) %>%
   map(filter, miss_care == "missed") %>%
   combine_dimensions(c(wks_incl, miss_care))
+```
+
+## anxiety
+
+``` r
+by_group$anxiety <- srvys %>%
+  compare_grps(anxious) %>%
+  map(filter, anxious == "most_all_days") %>%
+  combine_dimensions(c(wks_incl, anxious))
 ```
 
 ## housing insecurity—next month
@@ -512,7 +634,7 @@ by_group$work_loss %>%
        title = "loss of employment income since 3/13")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
 
 ``` r
 by_group$food_insecurity %>%
@@ -522,7 +644,7 @@ by_group$food_insecurity %>%
        title = "food insecurity in past 7 days")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-24-2.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-26-2.png)<!-- -->
 
 ``` r
 by_group$delayed_med_care  %>%
@@ -532,7 +654,7 @@ by_group$delayed_med_care  %>%
        title = "delayed medical care in past 4 weeks")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-24-3.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-26-3.png)<!-- -->
 
 ``` r
 by_group$missed_med_care  %>%
@@ -542,7 +664,17 @@ by_group$missed_med_care  %>%
        title = "missed medical care not related to covid in past 4 weeks")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-24-4.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-26-4.png)<!-- -->
+
+``` r
+by_group$anxiety %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(x = NULL, y = NULL,
+       title = "anxiety half the days in past week or more")
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-26-5.png)<!-- -->
 
 ``` r
 by_group$housing_insecurity %>%
@@ -552,7 +684,7 @@ by_group$housing_insecurity %>%
        title = "little/no confidence in making next housing payment")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-24-5.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-26-6.png)<!-- -->
 
 ``` r
 by_group$renter_insecurity %>%
@@ -562,7 +694,7 @@ by_group$renter_insecurity %>%
        title = "little/no confidence in making next housing payment--renters only")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-24-6.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-26-7.png)<!-- -->
 
 ``` r
 saveRDS(trends, here::here("output_data/hhp_trends.rds"))
@@ -577,8 +709,8 @@ wanted
 ``` r
 # just a little easier to handle food vars separately
 food_df <- pums_df %>%
-  select(state:hh_income, race, age_range, kids_present, current_food, cant_afford = foodsufrsn1, transportation = foodsufrsn2, need_delivered = foodsufrsn4, freefood, school = wherefree1, pantry = wherefree2, home_delivery = wherefree3, church = wherefree4, shelter = wherefree5, comm_program = wherefree6, family = wherefree7) %>%
-  mutate_at(vars(cant_afford:need_delivered), ~case_when(
+  select(state:hh_income, race, age_range, kids_present, current_food, cant_afford = foodsufrsn1, transportation = foodsufrsn2, afraid_to_go_out = foodsufrsn3, need_delivered = foodsufrsn4, stores_didnt_have_food = foodsufrsn5, freefood, school = wherefree1, pantry = wherefree2, home_delivery = wherefree3, church = wherefree4, shelter = wherefree5, comm_program = wherefree6, family = wherefree7) %>%
+  mutate_at(vars(cant_afford:stores_didnt_have_food), ~case_when(
     current_food == "secure" ~ NA_character_,
     is.na(.) ~ "didnt_need",
     TRUE ~ "needed"
@@ -592,69 +724,69 @@ food_df <- pums_df %>%
 summary(food_df)
 ```
 
-    ##     state             wks_incl         week         start_date        
-    ##  Length:612425      Length:612425      1: 74413   Min.   :2020-04-23  
-    ##  Class :character   Class :character   2: 41996   1st Qu.:2020-05-14  
-    ##  Mode  :character   Mode  :character   3:132961   Median :2020-05-21  
-    ##                                        4:101215   Mean   :2020-05-20  
-    ##                                        5:105066   3rd Qu.:2020-06-04  
-    ##                                        6: 83302   Max.   :2020-06-11  
-    ##                                        7: 73472                       
-    ##     end_date             pweight            gender      
-    ##  Min.   :2020-05-05   Min.   :     2.0   male  :249130  
-    ##  1st Qu.:2020-05-19   1st Qu.:   304.6   female:363295  
-    ##  Median :2020-05-26   Median :   855.6                  
-    ##  Mean   :2020-05-26   Mean   :  2848.0                  
-    ##  3rd Qu.:2020-06-09   3rd Qu.:  2446.6                  
-    ##  Max.   :2020-06-16   Max.   :447765.7                  
-    ##                                                         
+    ##     state             wks_incl              week          start_date        
+    ##  Length:720487      Length:720487      3      :132961   Min.   :2020-04-23  
+    ##  Class :character   Class :character   8      :108062   1st Qu.:2020-05-14  
+    ##  Mode  :character   Mode  :character   5      :105066   Median :2020-05-28  
+    ##                                        4      :101215   Mean   :2020-05-24  
+    ##                                        6      : 83302   3rd Qu.:2020-06-11  
+    ##                                        1      : 74413   Max.   :2020-06-18  
+    ##                                        (Other):115468                       
+    ##     end_date             scram              pweight            gender      
+    ##  Min.   :2020-05-05   Length:720487      Min.   :     2.0   male  :292120  
+    ##  1st Qu.:2020-05-19   Class :character   1st Qu.:   290.4   female:428367  
+    ##  Median :2020-06-02   Mode  :character   Median :   803.2                  
+    ##  Mean   :2020-05-30                      Mean   :  2766.7                  
+    ##  3rd Qu.:2020-06-16                      3rd Qu.:  2337.1                  
+    ##  Max.   :2020-06-23                      Max.   :447765.7                  
+    ##                                                                            
     ##            hh_income          race             age_range     
-    ##  under35k       :102892   white :467612   ages18_34 : 99257  
-    ##  income35k_75k  :151244   black : 45330   ages35_64 :360694  
-    ##  income75k_150k :174614   latino: 51206   ages65plus:152474  
-    ##  income150k_plus: 99856   asian : 27039                      
-    ##  NA's           : 83819   other : 21238                      
+    ##  under35k       :122083   white :548421   ages18_34 :117825  
+    ##  income35k_75k  :178624   black : 53645   ages35_64 :424647  
+    ##  income75k_150k :205188   latino: 61338   ages65plus:178015  
+    ##  income150k_plus:117188   asian : 31805                      
+    ##  NA's           : 97404   other : 25278                      
     ##                                                              
     ##                                                              
     ##         kids_present              current_food        cant_afford    
-    ##  kids_in_house:215782   secure          :403831   didnt_need:138404  
-    ##  no_kids      :396643   not_kinds_wanted:160313   needed    : 70190  
-    ##                         insecure        : 36351   NA's      :403831  
-    ##                         NA's            : 11930                      
+    ##  kids_in_house:255153   secure          :475126   didnt_need:160060  
+    ##  no_kids      :465334   not_kinds_wanted:188487   needed    : 85301  
+    ##                         insecure        : 42885   NA's      :475126  
+    ##                         NA's            : 13989                      
     ##                                                                      
     ##                                                                      
     ##                                                                      
-    ##     transportation      need_delivered            freefood     
-    ##  didnt_need:187577   didnt_need:194959   received_food: 36262  
-    ##  needed    : 21017   needed    : 13635   no_free_food :562252  
-    ##  NA's      :403831   NA's      :403831   NA's         : 13911  
-    ##                                                                
-    ##                                                                
-    ##                                                                
-    ##                                                                
-    ##               school                    pantry                home_delivery   
-    ##  didnt_use_source: 33377   didnt_use_source: 41967   didnt_use_source: 48709  
-    ##  used_source     : 16796   used_source     :  8206   used_source     :  1464  
-    ##  NA's            :562252   NA's            :562252   NA's            :562252  
+    ##     transportation     afraid_to_go_out     need_delivered  
+    ##  didnt_need:219995   didnt_need:183731   didnt_need:229503  
+    ##  needed    : 25366   needed    : 61630   needed    : 15858  
+    ##  NA's      :475126   NA's      :475126   NA's      :475126  
+    ##                                                             
+    ##                                                             
+    ##                                                             
+    ##                                                             
+    ##  stores_didnt_have_food          freefood                   school      
+    ##  didnt_need:125795      received_food: 43391   didnt_use_source: 39846  
+    ##  needed    :119566      no_free_food :660812   used_source     : 19829  
+    ##  NA's      :475126      NA's         : 16284   NA's            :660812  
+    ##                                                                         
+    ##                                                                         
+    ##                                                                         
+    ##                                                                         
+    ##               pantry                home_delivery                 church      
+    ##  didnt_use_source: 49442   didnt_use_source: 57899   didnt_use_source: 54550  
+    ##  used_source     : 10233   used_source     :  1776   used_source     :  5125  
+    ##  NA's            :660812   NA's            :660812   NA's            :660812  
     ##                                                                               
     ##                                                                               
     ##                                                                               
     ##                                                                               
-    ##               church                   shelter                 comm_program   
-    ##  didnt_use_source: 46201   didnt_use_source: 49812   didnt_use_source: 42758  
-    ##  used_source     :  3972   used_source     :   361   used_source     :  7415  
-    ##  NA's            :562252   NA's            :562252   NA's            :562252  
+    ##              shelter                 comm_program                 family      
+    ##  didnt_use_source: 59200   didnt_use_source: 50723   didnt_use_source: 49741  
+    ##  used_source     :   475   used_source     :  8952   used_source     :  9934  
+    ##  NA's            :660812   NA's            :660812   NA's            :660812  
     ##                                                                               
     ##                                                                               
     ##                                                                               
-    ##                                                                               
-    ##               family      
-    ##  didnt_use_source: 42179  
-    ##  used_source     :  7994  
-    ##  NA's            :562252  
-    ##                           
-    ##                           
-    ##                           
     ## 
 
 ``` r
@@ -670,32 +802,18 @@ fsrvys <- list(
 of adults getting free food in past 7 days
 
 ``` r
-food_sources <- list()
-```
-
-``` r
-food_sources$school <- fsrvys %>%
-  compare_grps(school, hh_income = FALSE) %>%
-  map(filter, school == "used_source") %>%
-  combine_dimensions(c(wks_incl, school))
-```
-
-``` r
-food_sources$pantry <- fsrvys %>%
-  compare_grps(pantry, hh_income = FALSE) %>%
-  map(filter, pantry == "used_source") %>%
-  combine_dimensions(c(wks_incl, pantry))
-```
-
-``` r
-food_sources$family <- fsrvys %>%
-  compare_grps(family, hh_income = FALSE) %>%
-  map(filter, family == "used_source") %>%
-  combine_dimensions(c(wks_incl, family))
-```
-
-``` r
-food_sources <- food_sources %>% map(filter, group != "other")
+food_sources <- food_df %>%
+  select(school:family) %>%
+  names() %>%
+  set_names() %>%
+  map(function(col_name) {
+    col <- sym(col_name)
+    fsrvys %>%
+      compare_grps({{ col }}, hh_income = FALSE) %>%
+      map(filter, {{ col }} == "used_source") %>%
+      combine_dimensions(c(wks_incl, {{ col }}))
+  }) %>%
+  map(filter, group != "other")
 ```
 
 ``` r
@@ -706,7 +824,7 @@ food_sources$school %>%
        caption = "of adults receiving free food in past 7 days")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
 
 ``` r
 food_sources$family %>%
@@ -716,7 +834,7 @@ food_sources$family %>%
        caption = "of adults receiving free food in past 7 days")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
 
 ``` r
 food_sources$pantry %>%
@@ -726,11 +844,30 @@ food_sources$pantry %>%
        caption = "of adults receiving free food in past 7 days")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
 
 Key takeaway: people living with kids rely heavily on schools for food,
 whereas people not living with kids & seniors rely heavily on food
 pantries & food banks.
+
+``` r
+food_sources %>%
+  map_dfr(pivot_longer, -c(name, wks_incl, share:group), names_to = "source") %>%
+  filter(name == "CT", dimension == "total") %>%
+  mutate(source = as_factor(source) %>% fct_reorder(share, .fun = max)) %>%
+  ggplot(aes(x = source, y = share)) +
+  geom_col(width = 0.8) +
+  geom_text(aes(label = scales::percent(share, accuracy = 1)), color = "white", hjust = 1, nudge_y = -2e-3, size = 2.5) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)), breaks = NULL) +
+  coord_flip() +
+  theme(panel.grid = element_blank(),
+        axis.ticks = element_blank()) +
+  theme_minimal() +
+  labs(title = "source of free food",
+       x = NULL, y = NULL)
+```
+
+![](pums_trends_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
 
 ## barriers to food access
 
@@ -738,32 +875,18 @@ of adults experiencing shortage of food / desired types of food in past
 7 days
 
 ``` r
-food_barriers <- list()
-```
-
-``` r
-food_barriers$cant_afford <- fsrvys %>%
-  compare_grps(cant_afford, hh_income = FALSE) %>%
-  map(filter, cant_afford == "needed") %>%
-  combine_dimensions(c(wks_incl, cant_afford))
-```
-
-``` r
-food_barriers$transportation <- fsrvys %>%
-  compare_grps(transportation, hh_income = FALSE) %>%
-  map(filter, transportation == "needed") %>%
-  combine_dimensions(c(wks_incl, transportation))
-```
-
-``` r
-food_barriers$need_delivered <- fsrvys %>%
-  compare_grps(need_delivered, hh_income = FALSE) %>%
-  map(filter, need_delivered == "needed") %>%
-  combine_dimensions(c(wks_incl, need_delivered))
-```
-
-``` r
-food_barriers <- food_barriers %>% map(filter, group != "other")
+food_barriers <- food_df %>%
+  select(cant_afford:stores_didnt_have_food) %>%
+  names() %>%
+  set_names() %>%
+  map(function(col_name) {
+    col <- sym(col_name)
+    fsrvys %>%
+      compare_grps({{ col }}, hh_income = FALSE) %>%
+      map(filter, {{ col }} == "needed") %>%
+      combine_dimensions(c(wks_incl, {{ col }}))
+  }) %>%
+  map(filter, group != "other")
 ```
 
 ``` r
@@ -774,7 +897,7 @@ food_barriers$cant_afford %>%
        caption = "of adults not having enough / desired food in past 7 days")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-40-1.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
 
 ``` r
 food_barriers$transportation %>%
@@ -784,7 +907,7 @@ food_barriers$transportation %>%
        caption = "of adults not having enough / desired food in past 7 days")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
 
 ``` r
 food_barriers$need_delivered %>%
@@ -794,7 +917,7 @@ food_barriers$need_delivered %>%
        caption = "of adults not having enough / desired food in past 7 days")
 ```
 
-![](pums_trends_files/figure-gfm/unnamed-chunk-42-1.png)<!-- -->
+![](pums_trends_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
 
 ``` r
 saveRDS(food_sources, here::here("output_data/hhp_sources_of_food.rds"))
@@ -804,3 +927,40 @@ saveRDS(food_barriers, here::here("output_data/hhp_barriers_to_food.rds"))
 ``` r
 write_csv(week_dates, here::here("_utils/pums_week_dates.csv"))
 ```
+
+Not ready yet: curious about how many people have become food insecure /
+experienced insecurity at some point
+
+``` r
+rep_ids <- all_pums %>%
+  map_dfr(janitor::clean_names, .id = "wk") %>%
+  filter(est_st == "09", !is.na(curfoodsuf)) %>%
+  count(scram) %>%
+  arrange(-n) %>%
+  filter(n > 1)
+
+ct_srvy %>%
+  filter(!is.na(current_food)) %>%
+  # as_tibble() %>%
+  group_by(scram) %>%
+  mutate(insecure = current_food == "insecure",
+         insecure_so_far = cumsum(insecure) > 0) %>%
+  ungroup() %>%
+  select(scram, week, current_food, insecure, insecure_so_far) %>%
+  # arrange(scram)
+  group_by(week) %>%
+  summarise(share_current = survey_mean(insecure, na.rm = TRUE),
+            share_ever = survey_mean(insecure_so_far, na.rm = TRUE, vartype = "ci", level = 0.9))
+```
+
+    ## # A tibble: 8 x 6
+    ##   week  share_current share_current_se share_ever share_ever_low share_ever_upp
+    ##   <fct>         <dbl>            <dbl>      <dbl>          <dbl>          <dbl>
+    ## 1 1            0.0895           0.0167     0.0895         0.0620          0.117
+    ## 2 2            0.0869           0.0222     0.0990         0.0611          0.137
+    ## 3 3            0.119            0.0282     0.135          0.0872          0.182
+    ## 4 4            0.0912           0.0210     0.114          0.0753          0.152
+    ## 5 5            0.0965           0.0167     0.107          0.0787          0.135
+    ## 6 6            0.102            0.0231     0.112          0.0735          0.151
+    ## 7 7            0.103            0.0231     0.113          0.0739          0.152
+    ## 8 8            0.102            0.0171     0.126          0.0919          0.160

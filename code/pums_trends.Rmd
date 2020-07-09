@@ -90,7 +90,7 @@ all_pums <- list.files(here::here("fetch_data/microdata"), full.names = TRUE) %>
 
 pums_df <- all_pums %>% 
   map(janitor::clean_names) %>%
-  map_dfr(select, scram, state = est_st, week, pweight, birth_year = tbirth_year, gender = egender, rhispanic, rrace, hh_income = income, nkids = thhld_numkid, wrkloss, prior_food = prifoodsuf, current_food = curfoodsuf, delay_care = delay, miss_care = notget, tenure, last_housing = mortlmth, housing_conf = mortconf, internet = intrntavail, starts_with("foodsufr"), freefood, starts_with("wherefree")) %>%
+  map_dfr(select, scram, state = est_st, week, pweight, birth_year = tbirth_year, gender = egender, rhispanic, rrace, hh_income = income, nkids = thhld_numkid, wrkloss, prior_food = prifoodsuf, current_food = curfoodsuf, delay_care = delay, miss_care = notget, anxious, tenure, last_housing = mortlmth, housing_conf = mortconf, internet = intrntavail, starts_with("foodsufr"), freefood, starts_with("wherefree")) %>%
   mutate_at(vars(-scram:-birth_year, -nkids), ~ifelse(. < 0, NA, .)) %>%
   mutate_at(vars(-scram:-birth_year, -nkids, -rhispanic, -rrace, -starts_with("foodsufr"), -starts_with("wherefree")), as.factor) %>%
   mutate_at(vars(starts_with("foodsufr"), starts_with("wherefree")), as.logical) %>%
@@ -102,6 +102,7 @@ pums_df <- all_pums %>%
          wrkloss = fct_recode(wrkloss, loss = "1", no_loss = "2"),
          delay_care = fct_recode(delay_care, delayed = "1", no_delay = "2"),
          miss_care = fct_recode(miss_care, missed = "1", no_miss = "2"),
+         anxious = fct_collapse(anxious, not_anxious = c("1", "2"), most_all_days = c("3", "4")),
          tenure = fct_recode(tenure, own_in_full = "1", mortgage = "2", rent = "3", other = "4"),
          last_housing = fct_recode(last_housing, on_time = "1", late = "2", deferred = "3"),
          housing_conf = fct_collapse(housing_conf, not_confident = c("1", "2"), confident = c("3", "4"), deferred = "5"),
@@ -159,6 +160,8 @@ trends$food_insecurity <- srvys %>%
   map(filter, !is.na(current_food)) %>%
   compare_share(week, current_food) %>%
   filter(current_food == "insecure")
+
+trends$food_insecurity
 ```
 
 
@@ -166,7 +169,7 @@ trends$food_insecurity <- srvys %>%
 
 ## delayed medical care
 
-US is steady, but CT trending up
+US is steady, but CT was trending up
 
 ```{r}
 trends$delayed_med_care <- srvys %>%
@@ -180,30 +183,49 @@ trends$delayed_med_care %>%
   geom_line(size = 0.8) +
   geom_point() +
   scale_color_carto_d(palette = "Vivid") +
-  scale_x_continuous(breaks = 1:6) +
+  # scale_x_continuous(breaks = 1:6) +
   labs(title = "delayed medical care")
 ```
 
 ## missed care
 
-not changing
+~~not changing~~ or fluctuating
 
 ```{r}
 trends$missed_med_care <- srvys %>%
   map(filter, !is.na(miss_care)) %>%
   compare_share(week, miss_care) %>%
   filter(miss_care == "missed")
+
+trends$missed_med_care
 ```
+
+## anxiety
+
+steady/fluctuating
+
+```{r}
+trends$anxiety <- srvys %>%
+  map(filter, !is.na(anxious)) %>%
+  compare_share(week, anxious) %>%
+  filter(anxious == "most_all_days")
+
+trends$anxiety
+```
+
+
 
 ## housing insecure—can't pay next month
 
-not changing
+~~not changing~~ fluctuating
 
 ```{r}
 trends$housing_insecurity <- srvys %>%
   map(filter, !is.na(housing_conf)) %>%
   compare_share(week, housing_conf) %>%
   filter(housing_conf == "not_confident")
+
+trends$housing_insecurity
 ```
 
 ## food insecurity: current vs prior
@@ -218,21 +240,7 @@ trends$food_insecurity_change <- srvys %>%
 trends$food_insecurity_change
 ```
 
-Note this just shows shares within each prior group, not shares of the total population
 
-```{r}
-trends$food_insecurity_change %>%
-  filter(name == "CT") %>%
-  select(name, prior_food, current_food, share) %>%
-  mutate(id = paste(prior_food, current_food, sep = ",")) %>%
-  pivot_longer(ends_with("food"), names_to = "point", names_ptypes = list(point = factor())) %>%
-  ggplot(aes(y = share, x = point, stratum = value, alluvium = id)) +
-  geom_alluvium(aes(fill = id), alpha = 0.9) +
-  geom_stratum(width = 1/8) +
-  geom_text(stat = "stratum", infer.label = TRUE, angle = 90, size = 2.8) +
-  scale_fill_manual(values = c(carto_pal(3, "RedOr"), carto_pal(3, "Purp"), carto_pal(3, "Teal"))) +
-  theme_minimal()
-```
 
 ```{r}
 food_change <- ct_srvy %>%
@@ -259,7 +267,7 @@ ggplot(food_change, aes(y = share, x = fct_rev(point), stratum = value, alluvium
 ```
 
 
-Flipped around: of the people currently food insecure, what was their condition before pandemic? CT data is pretty messy
+Flipped around: of the people currently food insecure, what was their condition before pandemic? CT data is pretty messy. Could be a trend in past couple weeks of people who were secure before covid now becoming insecure recently, or could be fluke
 
 ```{r}
 trends$became_food_insecure <- srvys %>%
@@ -270,7 +278,9 @@ trends$became_food_insecure <- srvys %>%
 trends$became_food_insecure %>%
   filter(name == "US") %>%
   ggplot(aes(x = as.numeric(week), y = share, fill = prior_food, color = prior_food)) +
-  geom_line()
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  scale_color_manual(values = carto_pal(7, "Vivid"))
 ```
 
 
@@ -348,6 +358,15 @@ by_group$missed_med_care <- srvys %>%
   combine_dimensions(c(wks_incl, miss_care))
 ```
 
+## anxiety
+
+```{r}
+by_group$anxiety <- srvys %>%
+  compare_grps(anxious) %>%
+  map(filter, anxious == "most_all_days") %>%
+  combine_dimensions(c(wks_incl, anxious))
+```
+
 
 ## housing insecurity—next month
 
@@ -423,6 +442,12 @@ by_group$missed_med_care  %>%
   compare_bars() +
   labs(x = NULL, y = NULL,
        title = "missed medical care not related to covid in past 4 weeks")
+
+by_group$anxiety %>%
+  filter(name == "CT" | dimension == "total") %>%
+  compare_bars() +
+  labs(x = NULL, y = NULL,
+       title = "anxiety half the days in past week or more")
 
 by_group$housing_insecurity %>%
   filter(name == "CT" | dimension == "total") %>%

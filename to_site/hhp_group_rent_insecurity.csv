@@ -1,3 +1,11 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:c84562aac5de71cda2eafd2984160610d356bcaf2b8c0d0c875757815d829697
-size 620
+housing_conf,share,dimension,group,date_range
+not_confident,0.3,total,CT,2020-04-23_2020-06-30
+not_confident,0.33,age_range,ages18_34,2020-04-23_2020-06-30
+not_confident,0.33,age_range,ages35_64,2020-04-23_2020-06-30
+not_confident,0.09,age_range,ages65plus,2020-04-23_2020-06-30
+not_confident,0.19,race,white,2020-04-23_2020-06-30
+not_confident,0.35,race,black,2020-04-23_2020-06-30
+not_confident,0.43,race,latino,2020-04-23_2020-06-30
+not_confident,0.14,race,asian,2020-04-23_2020-06-30
+not_confident,0.37,kids_present,kids_in_house,2020-04-23_2020-06-30
+not_confident,0.25,kids_present,no_kids,2020-04-23_2020-06-30

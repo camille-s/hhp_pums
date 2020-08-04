@@ -112,81 +112,81 @@ summary(pums_df)
 ```
 
     ##     state             wks_incl              week          start_date        
-    ##  Length:909917      Length:909917      3      :132961   Min.   :2020-04-23  
-    ##  Class :character   Class :character   8      :108062   1st Qu.:2020-05-14  
-    ##  Mode  :character   Mode  :character   5      :105066   Median :2020-05-28  
-    ##                                        4      :101215   Mean   :2020-06-01  
-    ##                                        9      : 98663   3rd Qu.:2020-06-18  
-    ##                                        10     : 90767   Max.   :2020-07-02  
-    ##                                        (Other):273183                       
+    ##  Length:1088314     Length:1088314     3      :132961   Min.   :2020-04-23  
+    ##  Class :character   Class :character   8      :108062   1st Qu.:2020-05-21  
+    ##  Mode  :character   Mode  :character   5      :105066   Median :2020-06-11  
+    ##                                        4      :101215   Mean   :2020-06-07  
+    ##                                        9      : 98663   3rd Qu.:2020-06-25  
+    ##                                        11     : 91605   Max.   :2020-07-16  
+    ##                                        (Other):450742                       
     ##     end_date             scram              pweight            gender      
-    ##  Min.   :2020-05-05   Length:909917      Min.   :     2.0   male  :368379  
-    ##  1st Qu.:2020-05-19   Class :character   1st Qu.:   303.1   female:541538  
-    ##  Median :2020-06-02   Mode  :character   Median :   812.9                  
-    ##  Mean   :2020-06-06                      Mean   :  2738.4                  
-    ##  3rd Qu.:2020-06-23                      3rd Qu.:  2323.7                  
-    ##  Max.   :2020-07-07                      Max.   :447765.7                  
+    ##  Min.   :2020-05-05   Length:1088314     Min.   :     2.0   male  :440475  
+    ##  1st Qu.:2020-05-26   Class :character   1st Qu.:   312.3   female:647839  
+    ##  Median :2020-06-16   Mode  :character   Median :   821.9                  
+    ##  Mean   :2020-06-13                      Mean   :  2747.4                  
+    ##  3rd Qu.:2020-06-30                      3rd Qu.:  2338.1                  
+    ##  Max.   :2020-07-21                      Max.   :447765.7                  
     ##                                                                            
     ##            hh_income          nkids           wrkloss      
-    ##  under35k       :156437   Min.   :0.0000   loss   :356422  
-    ##  income35k_75k  :227015   1st Qu.:0.0000   no_loss:548584  
-    ##  income75k_150k :258748   Median :0.0000   NA's   :  4911  
-    ##  income150k_plus:146650   Mean   :0.6657                   
-    ##  NA's           :121067   3rd Qu.:1.0000                   
+    ##  under35k       :188469   Min.   :0.0000   loss   :429808  
+    ##  income35k_75k  :272473   1st Qu.:0.0000   no_loss:652586  
+    ##  income75k_150k :308927   Median :0.0000   NA's   :  5920  
+    ##  income150k_plus:173920   Mean   :0.6669                   
+    ##  NA's           :144525   3rd Qu.:1.0000                   
     ##                           Max.   :5.0000                   
     ##                                                            
     ##             prior_food               current_food       delay_care    
-    ##  secure          :692933   secure          :597176   delayed :359570  
-    ##  not_kinds_wanted:154509   not_kinds_wanted:239679   no_delay:458160  
-    ##  insecure        : 45175   insecure        : 55172   NA's    : 92187  
-    ##  NA's            : 17300   NA's            : 17890                    
+    ##  secure          :827299   secure          :710896   delayed :428017  
+    ##  not_kinds_wanted:185831   not_kinds_wanted:288326   no_delay:550727  
+    ##  insecure        : 54200   insecure        : 67371   NA's    :109570  
+    ##  NA's            : 20984   NA's            : 21721                    
     ##                                                                       
     ##                                                                       
     ##                                                                       
     ##    miss_care               anxious               tenure         last_housing   
-    ##  missed :277477   not_anxious  :593469   own_in_full:193593   on_time :543175  
-    ##  no_miss:541359   most_all_days:234556   mortgage   :407152   late    : 46748  
-    ##  NA's   : 91081   NA's         : 81892   rent       :204430   deferred: 18992  
-    ##                                          other      : 10320   NA's    :301002  
-    ##                                          NA's       : 94422                    
+    ##  missed :330392   not_anxious  :704097   own_in_full:230978   on_time :649502  
+    ##  no_miss:649696   most_all_days:287315   mortgage   :488409   late    : 57209  
+    ##  NA's   :108226   NA's         : 96902   rent       :244389   deferred: 22819  
+    ##                                          other      : 12240   NA's    :358784  
+    ##                                          NA's       :112298                    
     ##                                                                                
     ##                                                                                
     ##         housing_conf              internet      foodsufrsn1    foodsufrsn2   
-    ##  not_confident: 80685   always_usually:202681   Mode:logical   Mode:logical  
-    ##  confident    :516946   not_reliable  : 15751   TRUE:113851    TRUE:33578    
-    ##  deferred     : 11743   NA's          :691485   NA's:796066    NA's:876339   
-    ##  NA's         :300543                                                        
+    ##  not_confident: 98412   always_usually:242549   Mode:logical   Mode:logical  
+    ##  confident    :617914   not_reliable  : 19333   TRUE:142337    TRUE:41457    
+    ##  deferred     : 13739   NA's          :826432   NA's:945977    NA's:1046857  
+    ##  NA's         :358249                                                        
     ##                                                                              
     ##                                                                              
     ##                                                                              
     ##  foodsufrsn3    foodsufrsn4    foodsufrsn5             freefood     
-    ##  Mode:logical   Mode:logical   Mode:logical   received_food: 55742  
-    ##  TRUE:80425     TRUE:19882     TRUE:145075    no_free_food :833331  
-    ##  NA's:829492    NA's:890035    NA's:764842    NA's         : 20844  
+    ##  Mode:logical   Mode:logical   Mode:logical   received_food: 67028  
+    ##  TRUE:98684     TRUE:23455     TRUE:167668    no_free_food :995889  
+    ##  NA's:989630    NA's:1064859   NA's:920646    NA's         : 25397  
     ##                                                                     
     ##                                                                     
     ##                                                                     
     ##                                                                     
     ##  wherefree1     wherefree2     wherefree3     wherefree4     wherefree5    
     ##  Mode:logical   Mode:logical   Mode:logical   Mode:logical   Mode:logical  
-    ##  TRUE:24841     TRUE:13793     TRUE:2329      TRUE:7179      TRUE:645      
-    ##  NA's:885076    NA's:896124    NA's:907588    NA's:902738    NA's:909272   
+    ##  TRUE:29215     TRUE:17201     TRUE:2835      TRUE:9152      TRUE:833      
+    ##  NA's:1059099   NA's:1071113   NA's:1085479   NA's:1079162   NA's:1087481  
     ##                                                                            
     ##                                                                            
     ##                                                                            
     ##                                                                            
     ##  wherefree6     wherefree7         race             age       
-    ##  Mode:logical   Mode:logical   white :691463   Min.   :18.00  
-    ##  TRUE:11583     TRUE:13331     black : 68111   1st Qu.:39.00  
-    ##  NA's:898334    NA's:896586    latino: 78311   Median :52.00  
-    ##                                asian : 39698   Mean   :51.58  
-    ##                                other : 32334   3rd Qu.:64.00  
+    ##  Mode:logical   Mode:logical   white :826039   Min.   :18.00  
+    ##  TRUE:13904     TRUE:16585     black : 81476   1st Qu.:39.00  
+    ##  NA's:1074410   NA's:1071729   latino: 94725   Median :52.00  
+    ##                                asian : 47046   Mean   :51.55  
+    ##                                other : 39028   3rd Qu.:64.00  
     ##                                                Max.   :88.00  
     ##                                                               
     ##         kids_present         age_range     
-    ##  kids_in_house:322892   ages18_34 :149211  
-    ##  no_kids      :587025   ages35_64 :536265  
-    ##                         ages65plus:224441  
+    ##  kids_in_house:387279   ages18_34 :179263  
+    ##  no_kids      :701035   ages35_64 :641570  
+    ##                         ages65plus:267481  
     ##                                            
     ##                                            
     ##                                            
@@ -199,14 +199,7 @@ srvys <- lst(us_srvy, ct_srvy) %>%
   set_names(substr, 1, 2) %>%
   # assume grouped for all weeks
   map(group_by, wks_incl)
-```
 
-    ## Warning: The `add` argument of `group_by()` is deprecated as of dplyr 1.0.0.
-    ## Please use the `.add` argument instead.
-    ## This warning is displayed once every 8 hours.
-    ## Call `lifecycle::last_warnings()` to see where this warning was generated.
-
-``` r
 trends <- list()
 by_group <- list()
 ```
@@ -229,33 +222,32 @@ trends$work_loss <- srvys %>%
   map(filter, !is.na(wrkloss)) %>%
   compare_share(week, wrkloss) %>%
   filter(wrkloss == "loss") 
+```
 
+    ## Warning: The `add` argument of `group_by()` is deprecated as of dplyr 1.0.0.
+    ## Please use the `.add` argument instead.
+    ## This warning is displayed once every 8 hours.
+    ## Call `lifecycle::last_warnings()` to see where this warning was generated.
+
+``` r
 trends$work_loss
 ```
 
-    ## # A tibble: 20 x 6
+    ## # A tibble: 24 x 6
+    ## # Groups:   wks_incl, week [12]
     ##    name  wks_incl week  wrkloss share share_se
     ##    <fct> <chr>    <fct> <fct>   <dbl>    <dbl>
-    ##  1 US    1_10     1     loss     0.47   0.0041
-    ##  2 US    1_10     2     loss     0.47   0.006 
-    ##  3 US    1_10     3     loss     0.48   0.0054
-    ##  4 US    1_10     4     loss     0.48   0.0047
-    ##  5 US    1_10     5     loss     0.48   0.0041
-    ##  6 US    1_10     6     loss     0.48   0.0046
-    ##  7 US    1_10     7     loss     0.48   0.0055
-    ##  8 US    1_10     8     loss     0.48   0.0049
-    ##  9 US    1_10     9     loss     0.49   0.0045
-    ## 10 US    1_10     10    loss     0.5    0.0045
-    ## 11 CT    1_10     1     loss     0.47   0.025 
-    ## 12 CT    1_10     2     loss     0.46   0.039 
-    ## 13 CT    1_10     3     loss     0.48   0.031 
-    ## 14 CT    1_10     4     loss     0.47   0.026 
-    ## 15 CT    1_10     5     loss     0.48   0.022 
-    ## 16 CT    1_10     6     loss     0.46   0.027 
-    ## 17 CT    1_10     7     loss     0.47   0.032 
-    ## 18 CT    1_10     8     loss     0.45   0.028 
-    ## 19 CT    1_10     9     loss     0.49   0.026 
-    ## 20 CT    1_10     10    loss     0.53   0.028
+    ##  1 US    1_12     1     loss     0.47   0.0041
+    ##  2 US    1_12     2     loss     0.47   0.006 
+    ##  3 US    1_12     3     loss     0.48   0.0054
+    ##  4 US    1_12     4     loss     0.48   0.0047
+    ##  5 US    1_12     5     loss     0.48   0.0041
+    ##  6 US    1_12     6     loss     0.48   0.0046
+    ##  7 US    1_12     7     loss     0.48   0.0055
+    ##  8 US    1_12     8     loss     0.48   0.0049
+    ##  9 US    1_12     9     loss     0.49   0.0045
+    ## 10 US    1_12     10    loss     0.5    0.0045
+    ## # … with 14 more rows
 
 ## food insecurity (current)
 
@@ -270,29 +262,21 @@ trends$food_insecurity <- srvys %>%
 trends$food_insecurity
 ```
 
-    ## # A tibble: 20 x 6
+    ## # A tibble: 24 x 6
+    ## # Groups:   wks_incl, week [12]
     ##    name  wks_incl week  current_food share share_se
     ##    <fct> <chr>    <fct> <fct>        <dbl>    <dbl>
-    ##  1 US    1_10     1     insecure     0.098  0.00290
-    ##  2 US    1_10     2     insecure     0.11   0.0042 
-    ##  3 US    1_10     3     insecure     0.11   0.0038 
-    ##  4 US    1_10     4     insecure     0.099  0.0033 
-    ##  5 US    1_10     5     insecure     0.11   0.0031 
-    ##  6 US    1_10     6     insecure     0.1    0.0033 
-    ##  7 US    1_10     7     insecure     0.1    0.0038 
-    ##  8 US    1_10     8     insecure     0.097  0.0031 
-    ##  9 US    1_10     9     insecure     0.1    0.0032 
-    ## 10 US    1_10     10    insecure     0.11   0.0032 
-    ## 11 CT    1_10     1     insecure     0.09   0.017  
-    ## 12 CT    1_10     2     insecure     0.087  0.022  
-    ## 13 CT    1_10     3     insecure     0.12   0.028  
-    ## 14 CT    1_10     4     insecure     0.091  0.021  
-    ## 15 CT    1_10     5     insecure     0.097  0.017  
-    ## 16 CT    1_10     6     insecure     0.1    0.023  
-    ## 17 CT    1_10     7     insecure     0.1    0.023  
-    ## 18 CT    1_10     8     insecure     0.1    0.017  
-    ## 19 CT    1_10     9     insecure     0.092  0.014  
-    ## 20 CT    1_10     10    insecure     0.094  0.016
+    ##  1 US    1_12     1     insecure     0.098  0.00290
+    ##  2 US    1_12     2     insecure     0.11   0.0042 
+    ##  3 US    1_12     3     insecure     0.11   0.0038 
+    ##  4 US    1_12     4     insecure     0.099  0.0033 
+    ##  5 US    1_12     5     insecure     0.11   0.0031 
+    ##  6 US    1_12     6     insecure     0.1    0.0033 
+    ##  7 US    1_12     7     insecure     0.1    0.0038 
+    ##  8 US    1_12     8     insecure     0.097  0.0031 
+    ##  9 US    1_12     9     insecure     0.1    0.0032 
+    ## 10 US    1_12     10    insecure     0.11   0.0032 
+    ## # … with 14 more rows
 
 ## delayed medical care
 
@@ -329,29 +313,21 @@ trends$missed_med_care <- srvys %>%
 trends$missed_med_care
 ```
 
-    ## # A tibble: 20 x 6
+    ## # A tibble: 24 x 6
+    ## # Groups:   wks_incl, week [12]
     ##    name  wks_incl week  miss_care share share_se
     ##    <fct> <chr>    <fct> <fct>     <dbl>    <dbl>
-    ##  1 US    1_10     1     missed    0.32    0.0039
-    ##  2 US    1_10     2     missed    0.34    0.0057
-    ##  3 US    1_10     3     missed    0.33    0.0053
-    ##  4 US    1_10     4     missed    0.33    0.0047
-    ##  5 US    1_10     5     missed    0.33    0.004 
-    ##  6 US    1_10     6     missed    0.32    0.0045
-    ##  7 US    1_10     7     missed    0.32    0.005 
-    ##  8 US    1_10     8     missed    0.33    0.0049
-    ##  9 US    1_10     9     missed    0.32    0.0044
-    ## 10 US    1_10     10    missed    0.32    0.0043
-    ## 11 CT    1_10     1     missed    0.31    0.024 
-    ## 12 CT    1_10     2     missed    0.35    0.038 
-    ## 13 CT    1_10     3     missed    0.37    0.034 
-    ## 14 CT    1_10     4     missed    0.34    0.026 
-    ## 15 CT    1_10     5     missed    0.34    0.022 
-    ## 16 CT    1_10     6     missed    0.34    0.028 
-    ## 17 CT    1_10     7     missed    0.37    0.033 
-    ## 18 CT    1_10     8     missed    0.290   0.026 
-    ## 19 CT    1_10     9     missed    0.27    0.024 
-    ## 20 CT    1_10     10    missed    0.32    0.027
+    ##  1 US    1_12     1     missed     0.32   0.0039
+    ##  2 US    1_12     2     missed     0.34   0.0057
+    ##  3 US    1_12     3     missed     0.33   0.0053
+    ##  4 US    1_12     4     missed     0.33   0.0047
+    ##  5 US    1_12     5     missed     0.33   0.004 
+    ##  6 US    1_12     6     missed     0.32   0.0045
+    ##  7 US    1_12     7     missed     0.32   0.005 
+    ##  8 US    1_12     8     missed     0.33   0.0049
+    ##  9 US    1_12     9     missed     0.32   0.0044
+    ## 10 US    1_12     10    missed     0.32   0.0043
+    ## # … with 14 more rows
 
 ## anxiety
 
@@ -366,29 +342,21 @@ trends$anxiety <- srvys %>%
 trends$anxiety
 ```
 
-    ## # A tibble: 20 x 6
+    ## # A tibble: 24 x 6
+    ## # Groups:   wks_incl, week [12]
     ##    name  wks_incl week  anxious       share share_se
     ##    <fct> <chr>    <fct> <fct>         <dbl>    <dbl>
-    ##  1 US    1_10     1     most_all_days 0.3     0.0039
-    ##  2 US    1_10     2     most_all_days 0.290   0.0057
-    ##  3 US    1_10     3     most_all_days 0.27    0.005 
-    ##  4 US    1_10     4     most_all_days 0.28    0.0047
-    ##  5 US    1_10     5     most_all_days 0.290   0.004 
-    ##  6 US    1_10     6     most_all_days 0.3     0.0046
-    ##  7 US    1_10     7     most_all_days 0.3     0.005 
-    ##  8 US    1_10     8     most_all_days 0.3     0.0045
-    ##  9 US    1_10     9     most_all_days 0.31    0.0044
-    ## 10 US    1_10     10    most_all_days 0.32    0.0044
-    ## 11 CT    1_10     1     most_all_days 0.31    0.025 
-    ## 12 CT    1_10     2     most_all_days 0.3     0.037 
-    ## 13 CT    1_10     3     most_all_days 0.28    0.033 
-    ## 14 CT    1_10     4     most_all_days 0.25    0.026 
-    ## 15 CT    1_10     5     most_all_days 0.27    0.02  
-    ## 16 CT    1_10     6     most_all_days 0.28    0.027 
-    ## 17 CT    1_10     7     most_all_days 0.34    0.031 
-    ## 18 CT    1_10     8     most_all_days 0.34    0.03  
-    ## 19 CT    1_10     9     most_all_days 0.31    0.024 
-    ## 20 CT    1_10     10    most_all_days 0.3     0.028
+    ##  1 US    1_12     1     most_all_days 0.3     0.0039
+    ##  2 US    1_12     2     most_all_days 0.290   0.0057
+    ##  3 US    1_12     3     most_all_days 0.27    0.005 
+    ##  4 US    1_12     4     most_all_days 0.28    0.0047
+    ##  5 US    1_12     5     most_all_days 0.290   0.004 
+    ##  6 US    1_12     6     most_all_days 0.3     0.0046
+    ##  7 US    1_12     7     most_all_days 0.3     0.005 
+    ##  8 US    1_12     8     most_all_days 0.3     0.0045
+    ##  9 US    1_12     9     most_all_days 0.31    0.0044
+    ## 10 US    1_12     10    most_all_days 0.32    0.0044
+    ## # … with 14 more rows
 
 ## housing insecure—can’t pay next month
 
@@ -403,29 +371,21 @@ trends$housing_insecurity <- srvys %>%
 trends$housing_insecurity
 ```
 
-    ## # A tibble: 20 x 6
+    ## # A tibble: 24 x 6
+    ## # Groups:   wks_incl, week [12]
     ##    name  wks_incl week  housing_conf  share share_se
     ##    <fct> <chr>    <fct> <fct>         <dbl>    <dbl>
-    ##  1 US    1_10     1     not_confident  0.21  0.0047 
-    ##  2 US    1_10     2     not_confident  0.22  0.0068 
-    ##  3 US    1_10     3     not_confident  0.22  0.0062 
-    ##  4 US    1_10     4     not_confident  0.21  0.0053 
-    ##  5 US    1_10     5     not_confident  0.21  0.0047 
-    ##  6 US    1_10     6     not_confident  0.19  0.00480
-    ##  7 US    1_10     7     not_confident  0.2   0.00580
-    ##  8 US    1_10     8     not_confident  0.21  0.0054 
-    ##  9 US    1_10     9     not_confident  0.22  0.0052 
-    ## 10 US    1_10     10    not_confident  0.22  0.005  
-    ## 11 CT    1_10     1     not_confident  0.17  0.02   
-    ## 12 CT    1_10     2     not_confident  0.19  0.03   
-    ## 13 CT    1_10     3     not_confident  0.24  0.032  
-    ## 14 CT    1_10     4     not_confident  0.18  0.031  
-    ## 15 CT    1_10     5     not_confident  0.15  0.021  
-    ## 16 CT    1_10     6     not_confident  0.14  0.03   
-    ## 17 CT    1_10     7     not_confident  0.15  0.023  
-    ## 18 CT    1_10     8     not_confident  0.21  0.028  
-    ## 19 CT    1_10     9     not_confident  0.24  0.029  
-    ## 20 CT    1_10     10    not_confident  0.22  0.032
+    ##  1 US    1_12     1     not_confident  0.21  0.0047 
+    ##  2 US    1_12     2     not_confident  0.22  0.0068 
+    ##  3 US    1_12     3     not_confident  0.22  0.0062 
+    ##  4 US    1_12     4     not_confident  0.21  0.0053 
+    ##  5 US    1_12     5     not_confident  0.21  0.0047 
+    ##  6 US    1_12     6     not_confident  0.19  0.00480
+    ##  7 US    1_12     7     not_confident  0.2   0.00580
+    ##  8 US    1_12     8     not_confident  0.21  0.0054 
+    ##  9 US    1_12     9     not_confident  0.22  0.0052 
+    ## 10 US    1_12     10    not_confident  0.22  0.005  
+    ## # … with 14 more rows
 
 ## food insecurity: current vs prior
 
@@ -445,26 +405,27 @@ trends$food_insecurity_change
 ```
 
     ## # A tibble: 18 x 6
+    ## # Groups:   wks_incl, prior_food [3]
     ##    name  wks_incl prior_food       current_food     share share_se
     ##    <fct> <chr>    <fct>            <fct>            <dbl>    <dbl>
-    ##  1 US    1_10     secure           secure           0.79   0.0015 
-    ##  2 US    1_10     secure           not_kinds_wanted 0.18   0.0014 
-    ##  3 US    1_10     secure           insecure         0.028  0.00066
-    ##  4 US    1_10     not_kinds_wanted secure           0.12   0.0022 
-    ##  5 US    1_10     not_kinds_wanted not_kinds_wanted 0.81   0.0028 
-    ##  6 US    1_10     not_kinds_wanted insecure         0.074  0.0019 
-    ##  7 US    1_10     insecure         secure           0.044  0.00240
-    ##  8 US    1_10     insecure         not_kinds_wanted 0.18   0.00480
-    ##  9 US    1_10     insecure         insecure         0.77   0.0052 
-    ## 10 CT    1_10     secure           secure           0.79   0.0084 
-    ## 11 CT    1_10     secure           not_kinds_wanted 0.19   0.0081 
-    ## 12 CT    1_10     secure           insecure         0.019  0.0028 
-    ## 13 CT    1_10     not_kinds_wanted secure           0.11   0.013  
-    ## 14 CT    1_10     not_kinds_wanted not_kinds_wanted 0.79   0.02   
-    ## 15 CT    1_10     not_kinds_wanted insecure         0.099  0.017  
-    ## 16 CT    1_10     insecure         secure           0.035  0.012  
-    ## 17 CT    1_10     insecure         not_kinds_wanted 0.19   0.027  
-    ## 18 CT    1_10     insecure         insecure         0.78   0.029
+    ##  1 US    1_12     secure           secure           0.79   0.0014 
+    ##  2 US    1_12     secure           not_kinds_wanted 0.18   0.0013 
+    ##  3 US    1_12     secure           insecure         0.03   0.00063
+    ##  4 US    1_12     not_kinds_wanted secure           0.11   0.002  
+    ##  5 US    1_12     not_kinds_wanted not_kinds_wanted 0.81   0.0025 
+    ##  6 US    1_12     not_kinds_wanted insecure         0.075  0.0017 
+    ##  7 US    1_12     insecure         secure           0.044  0.0022 
+    ##  8 US    1_12     insecure         not_kinds_wanted 0.18   0.0044 
+    ##  9 US    1_12     insecure         insecure         0.77   0.0047 
+    ## 10 CT    1_12     secure           secure           0.79   0.0077 
+    ## 11 CT    1_12     secure           not_kinds_wanted 0.19   0.0075 
+    ## 12 CT    1_12     secure           insecure         0.018  0.00240
+    ## 13 CT    1_12     not_kinds_wanted secure           0.12   0.012  
+    ## 14 CT    1_12     not_kinds_wanted not_kinds_wanted 0.79   0.018  
+    ## 15 CT    1_12     not_kinds_wanted insecure         0.096  0.015  
+    ## 16 CT    1_12     insecure         secure           0.039  0.011  
+    ## 17 CT    1_12     insecure         not_kinds_wanted 0.19   0.024  
+    ## 18 CT    1_12     insecure         insecure         0.77   0.026
 
 ``` r
 food_change <- ct_srvy %>%
@@ -750,65 +711,65 @@ summary(food_df)
 ```
 
     ##     state             wks_incl              week          start_date        
-    ##  Length:909917      Length:909917      3      :132961   Min.   :2020-04-23  
-    ##  Class :character   Class :character   8      :108062   1st Qu.:2020-05-14  
-    ##  Mode  :character   Mode  :character   5      :105066   Median :2020-05-28  
-    ##                                        4      :101215   Mean   :2020-06-01  
-    ##                                        9      : 98663   3rd Qu.:2020-06-18  
-    ##                                        10     : 90767   Max.   :2020-07-02  
-    ##                                        (Other):273183                       
+    ##  Length:1088314     Length:1088314     3      :132961   Min.   :2020-04-23  
+    ##  Class :character   Class :character   8      :108062   1st Qu.:2020-05-21  
+    ##  Mode  :character   Mode  :character   5      :105066   Median :2020-06-11  
+    ##                                        4      :101215   Mean   :2020-06-07  
+    ##                                        9      : 98663   3rd Qu.:2020-06-25  
+    ##                                        11     : 91605   Max.   :2020-07-16  
+    ##                                        (Other):450742                       
     ##     end_date             scram              pweight            gender      
-    ##  Min.   :2020-05-05   Length:909917      Min.   :     2.0   male  :368379  
-    ##  1st Qu.:2020-05-19   Class :character   1st Qu.:   303.1   female:541538  
-    ##  Median :2020-06-02   Mode  :character   Median :   812.9                  
-    ##  Mean   :2020-06-06                      Mean   :  2738.4                  
-    ##  3rd Qu.:2020-06-23                      3rd Qu.:  2323.7                  
-    ##  Max.   :2020-07-07                      Max.   :447765.7                  
+    ##  Min.   :2020-05-05   Length:1088314     Min.   :     2.0   male  :440475  
+    ##  1st Qu.:2020-05-26   Class :character   1st Qu.:   312.3   female:647839  
+    ##  Median :2020-06-16   Mode  :character   Median :   821.9                  
+    ##  Mean   :2020-06-13                      Mean   :  2747.4                  
+    ##  3rd Qu.:2020-06-30                      3rd Qu.:  2338.1                  
+    ##  Max.   :2020-07-21                      Max.   :447765.7                  
     ##                                                                            
     ##            hh_income          race             age_range     
-    ##  under35k       :156437   white :691463   ages18_34 :149211  
-    ##  income35k_75k  :227015   black : 68111   ages35_64 :536265  
-    ##  income75k_150k :258748   latino: 78311   ages65plus:224441  
-    ##  income150k_plus:146650   asian : 39698                      
-    ##  NA's           :121067   other : 32334                      
+    ##  under35k       :188469   white :826039   ages18_34 :179263  
+    ##  income35k_75k  :272473   black : 81476   ages35_64 :641570  
+    ##  income75k_150k :308927   latino: 94725   ages65plus:267481  
+    ##  income150k_plus:173920   asian : 47046                      
+    ##  NA's           :144525   other : 39028                      
     ##                                                              
     ##                                                              
     ##         kids_present              current_food        cant_afford    
-    ##  kids_in_house:322892   secure          :597176   didnt_need:198890  
-    ##  no_kids      :587025   not_kinds_wanted:239679   needed    :113851  
-    ##                         insecure        : 55172   NA's      :597176  
-    ##                         NA's            : 17890                      
+    ##  kids_in_house:387279   secure          :710896   didnt_need:235081  
+    ##  no_kids      :701035   not_kinds_wanted:288326   needed    :142337  
+    ##                         insecure        : 67371   NA's      :710896  
+    ##                         NA's            : 21721                      
     ##                                                                      
     ##                                                                      
     ##                                                                      
     ##     transportation     afraid_to_go_out     need_delivered  
-    ##  didnt_need:279163   didnt_need:232316   didnt_need:292859  
-    ##  needed    : 33578   needed    : 80425   needed    : 19882  
-    ##  NA's      :597176   NA's      :597176   NA's      :597176  
+    ##  didnt_need:335961   didnt_need:278734   didnt_need:353963  
+    ##  needed    : 41457   needed    : 98684   needed    : 23455  
+    ##  NA's      :710896   NA's      :710896   NA's      :710896  
     ##                                                             
     ##                                                             
     ##                                                             
     ##                                                             
     ##  stores_didnt_have_food          freefood                   school      
-    ##  didnt_need:167666      received_food: 55742   didnt_use_source: 51745  
-    ##  needed    :145075      no_free_food :833331   used_source     : 24841  
-    ##  NA's      :597176      NA's         : 20844   NA's            :833331  
+    ##  didnt_need:209750      received_food: 67028   didnt_use_source: 63210  
+    ##  needed    :167668      no_free_food :995889   used_source     : 29215  
+    ##  NA's      :710896      NA's         : 25397   NA's            :995889  
     ##                                                                         
     ##                                                                         
     ##                                                                         
     ##                                                                         
     ##               pantry                home_delivery                 church      
-    ##  didnt_use_source: 62793   didnt_use_source: 74257   didnt_use_source: 69407  
-    ##  used_source     : 13793   used_source     :  2329   used_source     :  7179  
-    ##  NA's            :833331   NA's            :833331   NA's            :833331  
+    ##  didnt_use_source: 75224   didnt_use_source: 89590   didnt_use_source: 83273  
+    ##  used_source     : 17201   used_source     :  2835   used_source     :  9152  
+    ##  NA's            :995889   NA's            :995889   NA's            :995889  
     ##                                                                               
     ##                                                                               
     ##                                                                               
     ##                                                                               
     ##              shelter                 comm_program                 family      
-    ##  didnt_use_source: 75941   didnt_use_source: 65003   didnt_use_source: 63255  
-    ##  used_source     :   645   used_source     : 11583   used_source     : 13331  
-    ##  NA's            :833331   NA's            :833331   NA's            :833331  
+    ##  didnt_use_source: 91592   didnt_use_source: 78521   didnt_use_source: 75840  
+    ##  used_source     :   833   used_source     : 13904   used_source     : 16585  
+    ##  NA's            :995889   NA's            :995889   NA's            :995889  
     ##                                                                               
     ##                                                                               
     ##                                                                               
@@ -1035,7 +996,7 @@ ct_srvy %>%
             share_ever = survey_mean(insecure_so_far, na.rm = TRUE, vartype = "ci", level = 0.9))
 ```
 
-    ## # A tibble: 10 x 6
+    ## # A tibble: 12 x 6
     ##    week  share_current share_current_se share_ever share_ever_low share_ever_upp
     ##    <fct>         <dbl>            <dbl>      <dbl>          <dbl>          <dbl>
     ##  1 1            0.0895           0.0167     0.0895         0.0620          0.117
@@ -1046,5 +1007,7 @@ ct_srvy %>%
     ##  6 6            0.102            0.0231     0.112          0.0735          0.151
     ##  7 7            0.103            0.0231     0.113          0.0739          0.152
     ##  8 8            0.102            0.0171     0.126          0.0926          0.160
-    ##  9 9            0.0922           0.0141     0.113          0.0850          0.141
+    ##  9 9            0.0922           0.0141     0.115          0.0868          0.143
     ## 10 10           0.0938           0.0155     0.0938         0.0683          0.119
+    ## 11 11           0.0860           0.0159     0.103          0.0743          0.131
+    ## 12 12           0.0874           0.0134     0.0961         0.0715          0.121
